@@ -1,5 +1,12 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import { createTLStore, loadSnapshot, type TLStoreSnapshot } from "tldraw";
+import {
+  createTLStore,
+  defaultBindingUtils,
+  defaultShapeUtils,
+  loadSnapshot,
+  type TLStoreSnapshot,
+} from "tldraw";
+import { workflowBindingUtils, workflowShapeUtils } from "./workflow";
 import {
   getCanvasBoardIdentity,
   type CanvasBoardTarget,
@@ -52,7 +59,10 @@ function validateSnapshot(snapshot: unknown): TLStoreSnapshot {
   )
     fail("invalid tldraw snapshot");
   const candidate = snapshot as TLStoreSnapshot;
-  const store = createTLStore();
+  const store = createTLStore({
+    shapeUtils: [...defaultShapeUtils, ...workflowShapeUtils],
+    bindingUtils: [...defaultBindingUtils, ...workflowBindingUtils],
+  });
   try {
     if (Object.keys(candidate.store).length > 100000) fail("too many records");
     // Validate every record before loading: loadSnapshot can repair invalid references.
@@ -195,7 +205,11 @@ export async function exportCanvasBundle(
     const snapshot =
       (await getCanvasPersistenceDatabase(
         board.persistenceKey,
-      ).readDocument()) ?? createTLStore().getStoreSnapshot("document");
+      ).readDocument()) ??
+      createTLStore({
+        shapeUtils: [...defaultShapeUtils, ...workflowShapeUtils],
+        bindingUtils: [...defaultBindingUtils, ...workflowBindingUtils],
+      }).getStoreSnapshot("document");
     validateSnapshot(snapshot);
     const snapshotPath = `boards/${board.boardId}.json`;
     files[snapshotPath] = strToU8(JSON.stringify(snapshot));

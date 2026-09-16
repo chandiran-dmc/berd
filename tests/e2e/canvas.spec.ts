@@ -443,6 +443,168 @@ test("typed agent actions bind arrows, arrange groups and undo logical operation
   ).toHaveLength(3);
 });
 
+test("agent kit work mode and task list persist with the board", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByLabel("Canvas agent controls").click();
+  await page.getByRole("button", { name: "reviewing" }).click();
+  await page
+    .getByRole("textbox", { name: "New canvas agent task" })
+    .fill("Review visual hierarchy");
+  await page.getByRole("button", { name: "Add canvas agent task" }).click();
+  await expect(
+    page.getByText("Review visual hierarchy", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "reviewing" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await page.reload();
+  await open(page);
+  await page.getByLabel("Canvas agent controls").click();
+  await expect(
+    page.getByText("Review visual hierarchy", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "reviewing" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(
+    page.getByRole("button", { name: "Review with agent" }),
+  ).toBeVisible();
+});
+
+test("workflow kit creates connected nodes, executes data flow, and persists the graph", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Hide chat" }).click();
+  await page.getByTestId("canvas-mode-workflow").click();
+  await expect(page.locator(".NodeShape")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Slider" })).toBeVisible();
+
+  const graph = await page.evaluate(async () => {
+    const runtimePath = "/src/features/canvas/runtime.ts";
+    const workflowPath = "/src/features/canvas/workflow/index.ts";
+    const bindingPath =
+      "/src/features/canvas/workflow/connection/ConnectionBindingUtil.tsx";
+    const portsPath = "/src/features/canvas/workflow/nodes/nodePorts.tsx";
+    const { getMountedEditor } = await import(/* @vite-ignore */ runtimePath);
+    const { getNodeDefinitions } = await import(
+      /* @vite-ignore */ workflowPath
+    );
+    const { createOrUpdateConnectionBinding } = await import(
+      /* @vite-ignore */ bindingPath
+    );
+    const { getNodePorts } = await import(/* @vite-ignore */ portsPath);
+    const editor = getMountedEditor();
+    const add = editor
+      .getCurrentPageShapes()
+      .find(
+        (shape: { type: string; props: { node?: { type?: string } } }) =>
+          shape.type === "node" && shape.props.node?.type === "add",
+      );
+    const sliderId = `shape:workflow-slider-${Date.now()}`;
+    const connectionId = `shape:workflow-connection-${Date.now()}`;
+    editor.createShape({
+      id: sliderId,
+      type: "node",
+      x: add.x - 420,
+      y: add.y,
+      props: { node: getNodeDefinitions(editor).slider.getDefault() },
+    });
+    editor.createShape({ id: connectionId, type: "connection" });
+    const input = Object.values(getNodePorts(editor, add.id)).find(
+      (port: { terminal: string }) => port.terminal === "end",
+    );
+    createOrUpdateConnectionBinding(editor, connectionId, sliderId, {
+      portId: "output",
+      terminal: "start",
+    });
+    createOrUpdateConnectionBinding(editor, connectionId, add.id, {
+      portId: input.id,
+      terminal: "end",
+    });
+    editor.zoomToFit({ animation: { duration: 0 } });
+    return { addId: add.id, sliderId };
+  });
+
+  await expect(page.locator(".NodeShape")).toHaveCount(2);
+  await page.getByRole("button", { name: "Run workflow" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(async (addId) => {
+        const path = "/src/features/canvas/runtime.ts";
+        const { getMountedEditor } = await import(/* @vite-ignore */ path);
+        return getMountedEditor().getShape(addId)?.props.node.lastResult;
+      }, graph.addId),
+    )
+    .toBe(50);
+
+  await page.reload();
+  await open(page);
+  await expect(page.getByTestId("canvas-mode-workflow")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator(".NodeShape")).toHaveCount(2);
+
+  const portableGraph = await page.evaluate(async (sessionId) => {
+    const dynamic = (path: string) => import(/* @vite-ignore */ path);
+    const { exportCanvasBundle, importCanvasBundle } = await dynamic(
+      "/src/features/canvas/portableBundles.ts",
+    );
+    const { getCanvasBoardIdentity } = await dynamic(
+      "/src/features/canvas/canvasIdentity.ts",
+    );
+    const { getCanvasPersistenceDatabase } = await dynamic(
+      "/src/features/canvas/persistence.ts",
+    );
+    const boardId = document
+      .querySelector("[data-canvas-board-id]")
+      ?.getAttribute("data-canvas-board-id");
+    if (!boardId) throw new Error("Canvas board id is unavailable");
+    const target = { scope: "chat" as const, sessionId };
+    const identity = getCanvasBoardIdentity({ ...target, boardId });
+    const bytes = await exportCanvasBundle({
+      boards: [
+        {
+          boardId,
+          name: "Workflow round trip",
+          persistenceKey: identity.persistenceKey,
+        },
+      ],
+    });
+    const imported = await importCanvasBundle(target, bytes);
+    const importedIdentity = getCanvasBoardIdentity({
+      ...target,
+      boardId: imported.boards[0].boardId,
+    });
+    const snapshot = await getCanvasPersistenceDatabase(
+      importedIdentity.persistenceKey,
+    ).readDocument();
+    const records = Object.values(snapshot?.store ?? {}) as Array<{
+      typeName: string;
+      type?: string;
+    }>;
+    return {
+      nodes: records.filter(
+        (record) => record.typeName === "shape" && record.type === "node",
+      ).length,
+      connections: records.filter(
+        (record) => record.typeName === "shape" && record.type === "connection",
+      ).length,
+      bindings: records.filter(
+        (record) =>
+          record.typeName === "binding" && record.type === "connection",
+      ).length,
+    };
+  }, sessionA);
+  expect(portableGraph).toEqual({ nodes: 2, connections: 1, bindings: 2 });
+});
+
 test("creative workflow places provider images as persistent assets (mock provider, real editor)", async ({
   page,
 }) => {

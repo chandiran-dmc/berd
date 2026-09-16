@@ -332,6 +332,74 @@ describe("canvas runtime editor registry", () => {
     expect(select).toHaveBeenCalled();
   });
 
+  it("supports the agent kit drawing, rotation, stacking, and clear actions", async () => {
+    const identity = board("session-agent-kit");
+    const shapes = new Map([
+      ["shape:one", { id: "shape:one", type: "geo", x: 10, y: 20 }],
+      ["shape:two", { id: "shape:two", type: "geo", x: 50, y: 60 }],
+    ]);
+    const createShape = vi.fn();
+    const rotateShapesBy = vi.fn();
+    const stackShapes = vi.fn();
+    const deleteShapes = vi.fn();
+    const editor = makeEditor({
+      createShape,
+      rotateShapesBy,
+      stackShapes,
+      deleteShapes,
+      markHistoryStoppingPoint: vi.fn(),
+      select: vi.fn(),
+      getShape: (id) => shapes.get(String(id)) as never,
+      getCurrentPageShapeIds: () => new Set(shapes.keys()) as never,
+      getShapePageBounds: (id) =>
+        ({
+          x: id === "shape:one" ? 10 : 50,
+          y: id === "shape:one" ? 20 : 60,
+          width: 20,
+          height: 20,
+          center: id === "shape:one" ? { x: 20, y: 30 } : { x: 60, y: 70 },
+        }) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await executeCanvasAction(identity.boardId, {
+      type: "draw",
+      points: [
+        { x: 0, y: 0 },
+        { x: 20, y: 30 },
+      ],
+      fill: "none",
+      closed: false,
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "rotate",
+      shapeIds: ["shape:one", "shape:two"],
+      degrees: 90,
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "stack",
+      shapeIds: ["shape:one", "shape:two"],
+      direction: "horizontal",
+      gap: 24,
+    });
+    await executeCanvasAction(identity.boardId, { type: "clear" });
+
+    expect(createShape).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "draw", x: 0, y: 0 }),
+    );
+    expect(rotateShapesBy).toHaveBeenCalledWith(
+      ["shape:one", "shape:two"],
+      Math.PI / 2,
+      expect.objectContaining({ center: expect.any(Object) }),
+    );
+    expect(stackShapes).toHaveBeenCalledWith(
+      ["shape:one", "shape:two"],
+      "horizontal",
+      24,
+    );
+    expect(deleteShapes).toHaveBeenCalledWith(["shape:one", "shape:two"]);
+  });
+
   it("creates bound arrows and persistent image assets", async () => {
     const identity = board("session-1");
     const createShape = vi.fn();

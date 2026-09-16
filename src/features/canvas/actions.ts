@@ -4,6 +4,7 @@ const coordinate = z.number().finite().min(-100_000).max(100_000);
 const dimension = z.number().finite().min(8).max(20_000);
 const shapeId = z.string().min(1).max(300);
 const shapeIds = z.array(shapeId).min(1).max(100);
+const point = z.object({ x: coordinate, y: coordinate }).strict();
 const color = z.enum([
   "black",
   "grey",
@@ -22,6 +23,33 @@ const color = z.enum([
 export const canvasActionSchema = z.discriminatedUnion("type", [
   z
     .object({
+      type: z.literal("agent-state"),
+      mode: z.enum(["working", "reviewing"]).optional(),
+      todo: z
+        .object({
+          id: z.string().min(1).max(64),
+          title: z.string().min(1).max(500),
+          status: z.enum(["open", "in-progress", "done"]),
+          remove: z.boolean().optional(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .refine((value) => value.mode !== undefined || value.todo !== undefined, {
+      message: "Provide a mode or todo update",
+    }),
+  z
+    .object({
+      type: z.literal("draw"),
+      points: z.array(point).min(2).max(500),
+      color: color.optional(),
+      fill: z.enum(["none", "semi", "solid", "pattern"]).default("none"),
+      closed: z.boolean().default(false),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("create-arrow"),
       startShapeId: shapeId,
       endShapeId: shapeId,
@@ -30,6 +58,7 @@ export const canvasActionSchema = z.discriminatedUnion("type", [
     })
     .strict(),
   z.object({ type: z.literal("delete"), shapeIds }).strict(),
+  z.object({ type: z.literal("clear") }).strict(),
   z
     .object({
       type: z.literal("place-image"),
@@ -60,6 +89,30 @@ export const canvasActionSchema = z.discriminatedUnion("type", [
       shapeIds,
       scaleX: z.number().finite().min(0.01).max(100),
       scaleY: z.number().finite().min(0.01).max(100),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("rotate"),
+      shapeIds,
+      degrees: z.number().finite().min(-3600).max(3600),
+      originX: coordinate.optional(),
+      originY: coordinate.optional(),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      if ((value.originX === undefined) !== (value.originY === undefined))
+        ctx.addIssue({
+          code: "custom",
+          message: "originX and originY must be supplied together",
+        });
+    }),
+  z
+    .object({
+      type: z.literal("stack"),
+      shapeIds: shapeIds.min(2),
+      direction: z.enum(["horizontal", "vertical"]),
+      gap: z.number().finite().min(0).max(20_000),
     })
     .strict(),
   z

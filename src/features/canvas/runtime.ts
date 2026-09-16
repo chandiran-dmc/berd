@@ -1,12 +1,14 @@
 import { z } from "zod/v4";
 import {
   AssetRecordType,
+  b64Vecs,
   Box,
   createShapeId,
   renderPlaintextFromRichText,
   toRichText,
   type Editor,
   type TLImageAsset,
+  type TLDrawShapeSegment,
   type TLShapeId,
 } from "tldraw";
 import {
@@ -21,6 +23,7 @@ import {
   type CanvasOpenRequest,
 } from "./canvasEvents";
 import type { CanvasBoardIdentity } from "./canvasIdentity";
+import { updateCanvasAgentState } from "./agentState";
 
 export { closeCanvas, openCanvas };
 export type { CanvasOpenRequest };
@@ -241,6 +244,12 @@ export async function executeCanvasAction(
   if (action.type === "undo") {
     for (let index = 0; index < action.steps; index += 1) editor.undo();
     message = `Undid ${action.steps} canvas operation${action.steps === 1 ? "" : "s"}`;
+  } else if (action.type === "agent-state") {
+    editor.markHistoryStoppingPoint("agent canvas state");
+    const state = updateCanvasAgentState(editor, action);
+    message = action.todo
+      ? `${action.todo.remove ? "Removed" : "Updated"} agent task ${action.todo.title}`
+      : `Canvas agent mode changed to ${state.mode}`;
   } else if (action.type === "viewport") {
     if (action.mode === "fit")
       editor.zoomToFit({ animation: { duration: 180 } });
@@ -269,7 +278,42 @@ export async function executeCanvasAction(
     }
     message = `Canvas viewport changed to ${action.mode}`;
   } else {
-    if (action.type === "create-arrow") {
+    if (action.type === "draw") {
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      const id = createShapeId();
+      const points = action.closed
+        ? [...action.points, action.points[0]]
+        : action.points;
+      const minX = Math.min(...points.map((point) => point.x));
+      const minY = Math.min(...points.map((point) => point.y));
+      const path = b64Vecs.encodePoints(
+        points.map((point) => ({
+          x: point.x - minX,
+          y: point.y - minY,
+          z: 0.75,
+        })),
+      );
+      const segments: TLDrawShapeSegment[] = [{ type: "free", path }];
+      editor.createShape({
+        id,
+        type: "draw",
+        x: minX,
+        y: minY,
+        props: {
+          color: action.color ?? "black",
+          fill: action.fill,
+          dash: "draw",
+          size: "s",
+          segments,
+          isComplete: true,
+          isClosed: action.closed,
+          isPen: true,
+        },
+      });
+      affectedShapeIds = [String(id)];
+      editor.select(id);
+      message = `Drew a ${action.closed ? "closed" : "freehand"} shape`;
+    } else if (action.type === "create-arrow") {
       const [startId, endId] = requireCurrentPageShapeIds(editor, [
         action.startShapeId,
         action.endShapeId,
@@ -396,6 +440,12 @@ export async function executeCanvasAction(
       affectedShapeIds = [String(id)];
       editor.select(id);
       message = `Placed image ${action.name}`;
+    } else if (action.type === "clear") {
+      const ids = [...editor.getCurrentPageShapeIds()];
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      editor.deleteShapes(ids);
+      affectedShapeIds = ids.map(String);
+      message = `Cleared ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
     } else {
       const ids = requireCurrentPageShapeIds(editor, action.shapeIds);
       editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
@@ -438,6 +488,22 @@ export async function executeCanvasAction(
           editor.resizeShape(id, { x: action.scaleX, y: action.scaleY });
         editor.select(...ids);
         message = `Resized ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "rotate") {
+        const commonBounds = Box.Common(
+          ids
+            .map((id) => editor.getShapePageBounds(id))
+            .filter((bounds): bounds is Box => bounds !== null),
+        );
+        editor.rotateShapesBy(ids, (action.degrees * Math.PI) / 180, {
+          center:
+            action.originX === undefined
+              ? commonBounds.center
+              : { x: action.originX, y: action.originY as number },
+        });
+        message = `Rotated ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "stack") {
+        editor.stackShapes(ids, action.direction, action.gap);
+        message = `Stacked ${ids.length} shapes ${action.direction}ly`;
       } else if (action.type === "align") {
         editor.alignShapes(ids, action.alignment);
         editor.select(...ids);

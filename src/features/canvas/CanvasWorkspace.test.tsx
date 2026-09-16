@@ -19,6 +19,27 @@ vi.mock("./CreativeWorkflow", () => ({
   CreativeWorkflow: () => <div data-testid="creative-workflow" />,
 }));
 
+vi.mock("./AgentKitControls", () => ({
+  AgentKitControls: () => <div data-testid="agent-kit-controls" />,
+}));
+
+vi.mock("./workflow", () => ({
+  createNodeShape: vi.fn(),
+  getNodeDefinitions: vi.fn(() => ({ add: { getDefault: () => ({}) } })),
+  mountWorkflowEditor: vi.fn(),
+  workflowBindingUtils: [],
+  workflowOptions: {},
+  workflowOverlayUtils: [],
+  workflowOverrides: {},
+  workflowShapeUtils: [],
+}));
+
+vi.mock("./workflow/WorkflowMode", () => ({
+  WorkflowModeProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
+  workflowAwareComponents: {},
+}));
+
 vi.mock("./actions", () => ({ onCanvasAction: () => vi.fn() }));
 
 vi.mock("./contextAttachment", () => ({

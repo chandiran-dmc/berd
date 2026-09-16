@@ -52,6 +52,11 @@ import { distributeCanvasShapesCommand } from "./impl/distributeCanvasShapes";
 import { reorderCanvasShapesCommand } from "./impl/reorderCanvasShapes";
 import { setCanvasViewportCommand } from "./impl/setCanvasViewport";
 import { undoCanvasCommand } from "./impl/undoCanvas";
+import { drawCanvasPathCommand } from "./impl/drawCanvasPath";
+import { rotateCanvasShapesCommand } from "./impl/rotateCanvasShapes";
+import { stackCanvasShapesCommand } from "./impl/stackCanvasShapes";
+import { clearCanvasCommand } from "./impl/clearCanvas";
+import { updateCanvasAgentStateCommand } from "./impl/updateCanvasAgentState";
 import { submitFeedbackCommand } from "./impl/submitFeedback";
 import { commandBridgeTimeoutMs } from "./timeouts";
 import { CommandError, type CommandContext, type ToolGroup } from "./types";
@@ -240,6 +245,11 @@ export const ALL_TOOL_GROUPS = {
         reorder: "reorder",
         viewport: "viewport",
         undo: "undo",
+        draw: "draw",
+        rotate: "rotate",
+        stack: "stack",
+        clear: "clear",
+        "agent-state": "agent_state",
       },
     },
     actions: {
@@ -260,6 +270,11 @@ export const ALL_TOOL_GROUPS = {
       reorder: reorderCanvasShapesCommand,
       viewport: setCanvasViewportCommand,
       undo: undoCanvasCommand,
+      draw: drawCanvasPathCommand,
+      rotate: rotateCanvasShapesCommand,
+      stack: stackCanvasShapesCommand,
+      clear: clearCanvasCommand,
+      agent_state: updateCanvasAgentStateCommand,
     },
   },
 } as const satisfies Record<string, ToolGroup>;

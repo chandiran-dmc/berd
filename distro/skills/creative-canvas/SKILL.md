@@ -67,6 +67,24 @@ Repeat `--shape-ids` once per shape. Resize uses integer
 `--scale-x-percent` and `--scale-y-percent` values (for example, `125` means
 125%). Ungroup uses `--group-ids`.
 
+The Agent starter actions are also available through the same bounded surface:
+
+```text
+berdctl canvas draw --session-id <session-id> \
+  --points 100,100 --points 180,130 --points 240,90 --color blue --json
+berdctl canvas rotate --session-id <session-id> \
+  --shape-ids <shape-id> --degrees 15 --json
+berdctl canvas stack --session-id <session-id> \
+  --shape-ids <shape-a> --shape-ids <shape-b> --direction horizontal --gap 32 --json
+```
+
+Use `canvas agent-state --mode working|reviewing` to switch the board agent
+mode. The same command can add or update a todo with `--todo-id`,
+`--todo-title`, and `--todo-status open|in-progress|done`, or remove it with
+`--todo-status removed`. This state and the current canvas lints are included
+in attached structured context. Use `canvas clear --confirm` only when the
+user asked to clear the page; the operation remains undoable.
+
 Use `canvas viewport --mode fit` to frame the board after a large edit, or use
 `--mode camera --x <x> --y <y> --zoom-percent <percent>` for a precise view.
 Use `canvas undo`
@@ -74,6 +92,12 @@ to reverse a recent visible change. Every mutation is applied to the mounted
 board and remains visible in the app. `canvas delete` is destructive and
 requires the explicit `--confirm` flag; explain the affected ids before using
 it when the user has not clearly requested deletion.
+
+Workflow mode is part of the same board. Its custom nodes, connections,
+bindings, and results persist with the tldraw document and editable bundle.
+Do not construct workflow records through undocumented JavaScript or raw store
+mutation. Use the visible Workflow toolbar and ports; use normal canvas
+commands for surrounding notes, labels, and layout.
 
 Use only the bounded fields exposed by `berdctl canvas --help`. Do not invent
 shape ids, mutate hidden boards, fetch arbitrary local files, or use arbitrary

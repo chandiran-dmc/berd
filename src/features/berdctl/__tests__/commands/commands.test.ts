@@ -740,6 +740,23 @@ describe("action schemas", () => {
       },
       "canvas.viewport": { session_id: "s1", mode: "fit" },
       "canvas.undo": { session_id: "s1" },
+      "canvas.draw": {
+        session_id: "s1",
+        points: ["0,0", "100,100"],
+      },
+      "canvas.rotate": {
+        session_id: "s1",
+        shape_ids: ["shape:1"],
+        degrees: 45,
+      },
+      "canvas.stack": {
+        session_id: "s1",
+        shape_ids: ["shape:1", "shape:2"],
+        direction: "horizontal",
+        gap: 24,
+      },
+      "canvas.clear": { session_id: "s1", confirm: true },
+      "canvas.agent_state": { session_id: "s1", mode: "reviewing" },
     };
 
     for (const [groupName, group] of Object.entries(TOOL_GROUPS)) {

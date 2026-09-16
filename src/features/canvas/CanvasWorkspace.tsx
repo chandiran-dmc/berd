@@ -25,17 +25,34 @@ import {
   IconMessageCirclePlus,
   IconPhoto,
   IconPlus,
+  IconRoute,
   IconX,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Tldraw, type Editor } from "tldraw";
+import { createShapeId, Tldraw, type Editor } from "tldraw";
 import "tldraw/tldraw.css";
+import "./workflow/workflow.css";
 import { getCanvasBoardIdentity, type CanvasScope } from "./canvasIdentity";
 import {
   loadPersistentCanvasStore,
   type PersistentCanvasStore,
 } from "./persistence";
 import { registerMountedEditor } from "./runtime";
+import {
+  createNodeShape,
+  getNodeDefinitions,
+  mountWorkflowEditor,
+  workflowBindingUtils,
+  workflowOptions,
+  workflowOverlayUtils,
+  workflowOverrides,
+  workflowShapeUtils,
+} from "./workflow";
+import {
+  WorkflowModeProvider,
+  workflowAwareComponents,
+} from "./workflow/WorkflowMode";
+import { AgentKitControls } from "./AgentKitControls";
 
 const TLDRAW_ASSET_URLS = getAssetUrls({ baseUrl: "/tldraw" });
 
@@ -54,12 +71,14 @@ interface CanvasWorkspaceProps {
 interface PersistentCanvasProps {
   identity: ReturnType<typeof getCanvasBoardIdentity>;
   visible: boolean;
+  workflowEnabled: boolean;
   onEditorChange: (editor: Editor | null) => void;
 }
 
 function PersistentCanvas({
   identity,
   visible,
+  workflowEnabled,
   onEditorChange,
 }: PersistentCanvasProps) {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -130,12 +149,23 @@ function PersistentCanvas({
           Canvas changes could not be saved: {persistenceError}
         </div>
       ) : null}
-      <Tldraw
-        store={persistentStore.store}
-        assetUrls={TLDRAW_ASSET_URLS}
-        licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
-        onMount={setEditor}
-      />
+      <WorkflowModeProvider enabled={workflowEnabled}>
+        <Tldraw
+          store={persistentStore.store}
+          assetUrls={TLDRAW_ASSET_URLS}
+          licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+          shapeUtils={workflowShapeUtils}
+          bindingUtils={workflowBindingUtils}
+          overlayUtils={workflowOverlayUtils}
+          overrides={workflowOverrides}
+          components={workflowAwareComponents}
+          options={workflowOptions}
+          onMount={(nextEditor) => {
+            mountWorkflowEditor(nextEditor);
+            setEditor(nextEditor);
+          }}
+        />
+      </WorkflowModeProvider>
     </>
   );
 }
@@ -179,6 +209,7 @@ export function CanvasWorkspace({
   const [bundleBusy, setBundleBusy] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [workflowEnabled, setWorkflowEnabled] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const effectiveScope = scope === "project" && !projectId ? "chat" : scope;
   const identity = useMemo(
@@ -343,6 +374,11 @@ export function CanvasWorkspace({
   const handleEditorChange = useCallback(
     (nextEditor: Editor | null) => {
       if (!nextEditor) return;
+      setWorkflowEnabled(
+        nextEditor
+          .getCurrentPageShapes()
+          .some((shape) => shape.type === "node"),
+      );
       setMountedEditor({
         persistenceKey: identity.persistenceKey,
         editor: nextEditor,
@@ -350,6 +386,20 @@ export function CanvasWorkspace({
     },
     [identity.persistenceKey],
   );
+
+  const enableWorkflow = useCallback(() => {
+    if (!editor) return;
+    setWorkflowEnabled(true);
+    if (editor.getCurrentPageShapes().some((shape) => shape.type === "node"))
+      return;
+    const addNode = getNodeDefinitions(editor).add;
+    createNodeShape(
+      editor,
+      createShapeId(),
+      editor.getViewportPageBounds().center,
+      addNode.getDefault(),
+    );
+  }, [editor]);
 
   const handleExport = useCallback(async () => {
     if (!editor || isExporting) return;
@@ -543,7 +593,36 @@ export function CanvasWorkspace({
             </span>
           )}
         </div>
+        <fieldset
+          aria-label="Canvas mode"
+          className="flex items-center rounded-lg bg-muted p-0.5"
+        >
+          <button
+            type="button"
+            aria-pressed={!workflowEnabled}
+            onClick={() => setWorkflowEnabled(false)}
+            className="h-7 rounded-md px-2 font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-mini"
+          >
+            Canvas
+          </button>
+          <button
+            type="button"
+            data-testid="canvas-mode-workflow"
+            aria-pressed={workflowEnabled}
+            disabled={!editor}
+            onClick={enableWorkflow}
+            className="inline-flex h-7 items-center gap-1 rounded-md px-2 font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-mini disabled:opacity-40"
+          >
+            <IconRoute className="size-3.5" aria-hidden="true" />
+            Workflow
+          </button>
+        </fieldset>
         <div className="ml-auto flex items-center gap-1">
+          <AgentKitControls
+            editor={editor}
+            busy={attaching}
+            onAsk={(prompt) => void attach("viewport", prompt)}
+          />
           <button
             type="button"
             aria-label="Attach visible canvas"
@@ -657,6 +736,7 @@ export function CanvasWorkspace({
           key={identity.persistenceKey}
           identity={identity}
           visible={visible}
+          workflowEnabled={workflowEnabled}
           onEditorChange={handleEditorChange}
         />
       </div>

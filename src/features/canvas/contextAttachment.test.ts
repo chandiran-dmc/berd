@@ -34,6 +34,7 @@ describe("canvas context", () => {
         new Box(shape.x, shape.y, 100, 100),
       getCamera: () => ({ x: 0, y: 0, z: 1 }),
       getCurrentPageId: () => "page:p",
+      getCurrentPage: () => ({ id: "page:p", meta: {} }),
       getSelectionPageBounds: () => new Box(5399, 0, 100, 100),
     } as unknown as Editor;
     const identity = getCanvasBoardIdentity({ sessionId: "s", scope: "chat" });

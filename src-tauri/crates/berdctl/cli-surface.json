@@ -295,6 +295,31 @@
           "action": "undo",
           "about": "Undo visible canvas changes",
           "afterHelp": "Example:\n  berdctl canvas undo --session-id <session-id> --steps 1\n\nResult:\n  {\"ok\": true} — recent canvas changes are undone visibly."
+        },
+        "draw": {
+          "action": "draw",
+          "about": "Draw a freehand canvas path",
+          "afterHelp": "Example:\n  berdctl canvas draw --session-id <session-id> --points 100,100 --points 180,140\n\nResult:\n  {\"ok\": true} — the freehand path is visible and selected."
+        },
+        "rotate": {
+          "action": "rotate",
+          "about": "Rotate visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas rotate --session-id <session-id> --shape-ids <shape-id> --degrees 45\n\nResult:\n  {\"ok\": true} — the shape is visibly rotated."
+        },
+        "stack": {
+          "action": "stack",
+          "about": "Stack visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas stack --session-id <session-id> --shape-ids <a> --shape-ids <b> --direction horizontal --gap 24\n\nResult:\n  {\"ok\": true} — the shapes are visibly stacked."
+        },
+        "clear": {
+          "action": "clear",
+          "about": "Clear the visible canvas page",
+          "afterHelp": "Example:\n  berdctl canvas clear --session-id <session-id> --confirm\n\nResult:\n  {\"ok\": true} — every visible shape on the current page is removed."
+        },
+        "agent-state": {
+          "action": "agent_state",
+          "about": "Update canvas agent mode or task list",
+          "afterHelp": "Examples:\n  berdctl canvas agent-state --session-id <session-id> --mode reviewing\n  berdctl canvas agent-state --session-id <session-id> --todo-id layout --todo-title \"Align cards\" --todo-status in-progress\n\nResult:\n  {\"ok\": true} — the agent state is updated on the visible board."
         }
       }
     }

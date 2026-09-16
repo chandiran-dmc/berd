@@ -2,6 +2,7 @@ import { renderPlaintextFromRichText, type Editor, type TLShape } from "tldraw";
 import type { ChatImageAttachmentDraft } from "@/shared/types/messages";
 import { resizeImage } from "@/features/chat/lib/resizeImage";
 import type { CanvasBoardIdentity } from "./canvasIdentity";
+import { detectCanvasAgentLints, readCanvasAgentState } from "./agentState";
 
 export type CanvasContextMode = "viewport" | "selection";
 const MAX_SHAPES = 100;
@@ -187,6 +188,8 @@ export function collectCanvasContext(
     omittedOffscreenClusters: Math.max(0, clusters.size - 24),
     recentEdits: [...(state?.edits ?? [])],
     omittedRecentEdits: 0,
+    agentState: readCanvasAgentState(editor),
+    canvasLints: detectCanvasAgentLints(editor),
   };
   while (
     new TextEncoder().encode(JSON.stringify(context)).length > MAX_JSON &&

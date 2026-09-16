@@ -3445,6 +3445,569 @@
             "required": ["session_id"],
             "additionalProperties": false
           }
+        },
+        "draw": {
+          "description": "Create an editable freehand stroke from bounded page-space points.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "points",
+              "required": true,
+              "kind": "string_array",
+              "description": "Ordered page-space points forming the pen stroke."
+            },
+            {
+              "name": "color",
+              "required": false,
+              "kind": "string",
+              "description": "tldraw shape color.",
+              "values": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red"
+              ]
+            },
+            {
+              "name": "fill",
+              "required": false,
+              "kind": "string",
+              "description": "Fill style for a closed stroke.",
+              "values": ["none", "semi", "solid", "pattern"]
+            },
+            {
+              "name": "closed",
+              "required": false,
+              "kind": "boolean",
+              "description": "Close the stroke back to its first point."
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "points": {
+                "minItems": 2,
+                "maxItems": 500,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^-?\\d+(?:\\.\\d+)?,-?\\d+(?:\\.\\d+)?$"
+                },
+                "description": "Ordered page-space points forming the pen stroke."
+              },
+              "color": {
+                "description": "tldraw shape color.",
+                "type": "string",
+                "enum": [
+                  "black",
+                  "grey",
+                  "light-violet",
+                  "violet",
+                  "blue",
+                  "light-blue",
+                  "yellow",
+                  "orange",
+                  "green",
+                  "light-green",
+                  "light-red",
+                  "red"
+                ]
+              },
+              "fill": {
+                "default": "none",
+                "description": "Fill style for a closed stroke.",
+                "type": "string",
+                "enum": ["none", "semi", "solid", "pattern"]
+              },
+              "closed": {
+                "default": false,
+                "description": "Close the stroke back to its first point.",
+                "type": "boolean"
+              }
+            },
+            "required": ["session_id", "points"],
+            "additionalProperties": false
+          }
+        },
+        "rotate": {
+          "description": "Rotate shapes around their shared center or an explicit page-space origin.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "shape_ids",
+              "required": true,
+              "kind": "string_array",
+              "description": "One or more visible shape ids to modify."
+            },
+            {
+              "name": "degrees",
+              "required": true,
+              "kind": "number",
+              "description": "Clockwise rotation in degrees.",
+              "min": -3600,
+              "max": 3600
+            },
+            {
+              "name": "origin_x",
+              "required": false,
+              "kind": "number",
+              "description": "Optional page-space rotation origin x.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "origin_y",
+              "required": false,
+              "kind": "number",
+              "description": "Optional page-space rotation origin y.",
+              "min": -100000,
+              "max": 100000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "shape_ids": {
+                "minItems": 1,
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "description": "One or more visible shape ids to modify."
+              },
+              "degrees": {
+                "type": "number",
+                "minimum": -3600,
+                "maximum": 3600,
+                "description": "Clockwise rotation in degrees."
+              },
+              "origin_x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Optional page-space rotation origin x."
+              },
+              "origin_y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Optional page-space rotation origin y."
+              }
+            },
+            "required": ["session_id", "shape_ids", "degrees"],
+            "additionalProperties": false
+          }
+        },
+        "stack": {
+          "description": "Arrange two or more shapes in order with a consistent gap.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "shape_ids",
+              "required": true,
+              "kind": "string_array",
+              "description": "One or more visible shape ids to modify."
+            },
+            {
+              "name": "direction",
+              "required": true,
+              "kind": "string",
+              "description": "Direction in which to stack the shapes.",
+              "values": ["horizontal", "vertical"]
+            },
+            {
+              "name": "gap",
+              "required": true,
+              "kind": "number",
+              "description": "Page-space gap between stacked shapes.",
+              "min": 0,
+              "max": 20000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "shape_ids": {
+                "minItems": 2,
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "description": "One or more visible shape ids to modify."
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["horizontal", "vertical"],
+                "description": "Direction in which to stack the shapes."
+              },
+              "gap": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 20000,
+                "description": "Page-space gap between stacked shapes."
+              }
+            },
+            "required": ["session_id", "shape_ids", "direction", "gap"],
+            "additionalProperties": false
+          }
+        },
+        "clear": {
+          "description": "Delete every shape on the current page after explicit confirmation. Undo remains available.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "confirm",
+              "required": false,
+              "kind": "boolean",
+              "description": "Explicitly confirm clearing the visible canvas page."
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "confirm": {
+                "default": false,
+                "description": "Explicitly confirm clearing the visible canvas page.",
+                "type": "boolean"
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
+        },
+        "agent_state": {
+          "description": "Switch between working and reviewing modes or maintain the board's visible agent task list.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "mode",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas agent mode.",
+              "values": ["working", "reviewing"]
+            },
+            {
+              "name": "todo_id",
+              "required": false,
+              "kind": "string",
+              "description": "Stable task id to add, update, or remove.",
+              "min": 1,
+              "max": 64
+            },
+            {
+              "name": "todo_title",
+              "required": false,
+              "kind": "string",
+              "description": "Task title.",
+              "min": 1,
+              "max": 500
+            },
+            {
+              "name": "todo_status",
+              "required": false,
+              "kind": "string",
+              "description": "Task status; removed deletes the task.",
+              "values": ["open", "in-progress", "done", "removed"]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "mode": {
+                "description": "Canvas agent mode.",
+                "type": "string",
+                "enum": ["working", "reviewing"]
+              },
+              "todo_id": {
+                "description": "Stable task id to add, update, or remove.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "todo_title": {
+                "description": "Task title.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "todo_status": {
+                "description": "Task status; removed deletes the task.",
+                "type": "string",
+                "enum": ["open", "in-progress", "done", "removed"]
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
         }
       }
     }

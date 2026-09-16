@@ -438,6 +438,31 @@ mod tests {
                 vec!["--session-id", "s", "--mode", "fit"]
             }
             ("canvas", "undo") => vec!["--session-id", "s"],
+            ("canvas", "draw") => vec!["--session-id", "s", "--points", "0,0", "--points", "10,10"],
+            ("canvas", "rotate") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--degrees",
+                "15",
+            ],
+            ("canvas", "stack") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--shape-ids",
+                "shape:2",
+                "--direction",
+                "horizontal",
+                "--gap",
+                "24",
+            ],
+            ("canvas", "clear") => vec!["--session-id", "s", "--confirm"],
+            ("canvas", "agent-state") => {
+                vec!["--session-id", "s", "--mode", "working"]
+            }
             _ => return None,
         })
     }

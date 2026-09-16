@@ -1,5 +1,7 @@
 import {
   createTLStore,
+  defaultBindingUtils,
+  defaultShapeUtils,
   loadSnapshot,
   type TLAssetId,
   type TLAssetStore,
@@ -7,6 +9,7 @@ import {
   type TLStoreSnapshot,
   type TLRecord,
 } from "tldraw";
+import { workflowBindingUtils, workflowShapeUtils } from "./workflow";
 
 const DOCUMENT_STORE = "document";
 const ASSET_STORE = "assets";
@@ -234,7 +237,12 @@ export async function loadPersistentCanvasStore(
       return database.removeAssets(assetIds);
     },
   };
-  const store = createTLStore({ assets, snapshot });
+  const store = createTLStore({
+    assets,
+    snapshot,
+    shapeUtils: [...defaultShapeUtils, ...workflowShapeUtils],
+    bindingUtils: [...defaultBindingUtils, ...workflowBindingUtils],
+  });
   const channel = new BroadcastChannel(`berd-canvas:${persistenceKey}`);
   channel.onmessage = (
     event: MessageEvent<
