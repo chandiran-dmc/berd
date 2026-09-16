@@ -25,6 +25,9 @@ test.beforeEach(async ({ page }) => {
     }),
   });
   await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Home", exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
 });
 
 async function command(page: Page, args: Record<string, unknown>) {
@@ -225,13 +228,16 @@ test("imported image assets survive reopening the chat", async ({ page }) => {
     )
     .toBe(1);
   await expect
-    .poll(async () =>
-      page
-        .locator("img.tl-image")
-        .first()
-        .evaluate(
-          (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
-        ),
+    .poll(
+      async () =>
+        page
+          .locator("img.tl-image")
+          .first()
+          .evaluate(
+            (image: HTMLImageElement) =>
+              image.complete && image.naturalWidth > 0,
+          ),
+      { timeout: 15_000 },
     )
     .toBe(true);
 });
