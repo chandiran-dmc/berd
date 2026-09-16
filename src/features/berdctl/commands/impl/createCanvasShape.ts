@@ -13,6 +13,12 @@ const schema = z
       .min(1)
       .optional()
       .describe("Project id for a project canvas."),
+    board_id: z
+      .string()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe("Named board id. Omit for the default board."),
     scope: z
       .enum(["chat", "project"])
       .default("chat")
@@ -92,10 +98,14 @@ export const createCanvasShapeCommand = defineCommand({
     const {
       session_id: _sessionId,
       project_id: _projectId,
+      board_id: _boardId,
       scope: _scope,
       ...shape
     } = args;
-    const id = createCanvasShape(target.boardId, shape);
+    const id = createCanvasShape(target.boardId, shape, {
+      sessionId: target.sessionId,
+      projectId: target.projectId,
+    });
     return { shape_id: id, board_id: target.boardId };
   },
 });

@@ -13,6 +13,12 @@ const schema = z
       .min(1)
       .optional()
       .describe("Project id for a project canvas."),
+    board_id: z
+      .string()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe("Named board id. Omit for the default board."),
     scope: z
       .enum(["chat", "project"])
       .default("chat")
@@ -89,15 +95,19 @@ export const updateCanvasShapeCommand = defineCommand({
     const { updateCanvasShape } = await import("@/features/canvas/runtime");
     if (ctx.deadlineMs !== undefined && Date.now() >= ctx.deadlineMs)
       throw new Error("Canvas command timed out before mutation.");
-    updateCanvasShape(target.boardId, {
-      shapeId: args.shape_id,
-      x: args.x,
-      y: args.y,
-      width: args.width,
-      height: args.height,
-      text: args.text,
-      color: args.color,
-    });
+    updateCanvasShape(
+      target.boardId,
+      {
+        shapeId: args.shape_id,
+        x: args.x,
+        y: args.y,
+        width: args.width,
+        height: args.height,
+        text: args.text,
+        color: args.color,
+      },
+      { sessionId: target.sessionId, projectId: target.projectId },
+    );
     return {
       ok: true as const,
       board_id: target.boardId,

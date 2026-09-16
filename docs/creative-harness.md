@@ -1,100 +1,160 @@
-# Creative Harness: Berd with an optional canvas
+# Creative Harness: Berd's visual workspace
 
-This downstream fork adds a tldraw canvas to Berd's desktop agent workspace.
-The original Berd chat, provider setup, and Goose backend remain the agent runtime.
-There is no second canvas model gateway and no Cloudflare service to run.
-
-## Repositories
+Creative Harness adds a tldraw workspace to the Berd desktop fork. Berd's selected
+agent, existing sign-ins, ACP transport, message queue and pinned upstream Goose
+backend remain authoritative. There is no second canvas chat service or model
+routing gateway. The backend fork is reserved for demonstrated future needs.
 
 - Desktop fork: https://github.com/chandiran-dmc/berd
-- Backend fork: https://github.com/chandiran-dmc/goose
 - Desktop upstream: https://github.com/block/berd
-- Backend upstream: https://github.com/aaif-goose/goose
+- Reserved backend fork: https://github.com/chandiran-dmc/goose
+- Upstream backend: https://github.com/aaif-goose/goose
 
-The Goose fork is reserved for future backend changes. The app deliberately keeps
-the reviewed upstream commit in `goose-backend.lock.json`; a canvas does not
-require maintaining a modified Goose runtime.
+## Boards and chat
 
-## Boards
+Open Canvas in a conversation. A project conversation opens its project workspace;
+a standalone conversation opens its private chat board. The Chat/Project switch
+keeps both available. Create named boards with New board, select a board from the
+board menu, and rename it using Board name. Project boards are shared across that
+project's conversations; private chat boards remain separate. Hide chat gives the
+canvas the workspace; Show chat restores the same composer and its draft.
 
-Open a conversation and use its Canvas control. A chat canvas belongs to that
-conversation. A project canvas is shared by conversations assigned to the same
-project. Switching scope chooses a different board; it does not move or copy the
-current board. Closing the canvas hides it without clearing its contents.
+Boards have stable identities independent of names. Documents, board catalogs and
+media live in IndexedDB. Multiple windows receive document changes through the
+existing BroadcastChannel adapter. This is local storage, not cloud collaboration.
+Clearing app data removes it. Export a project for a portable backup.
 
-Each board and its imported media are stored in local IndexedDB, with separate
-versioned keys for chat and project identities. This is local app storage, not a
-cloud sync or a portable project file. Clearing application data removes boards.
-PNG export provides a rendered copy; it does not preserve editable shapes.
+## Canvas-aware conversations
 
-Use the canvas tools for shapes, notes, arrows, drawing, and image references.
-The existing selected agent can use the bundled `berdctl canvas` commands to read
-and edit an open board. Agent changes are visible and use the editor's undo
-history. See the bundled canvas skill for the command surface.
+Attach visible canvas captures a PNG of the viewport. Ask about selection captures
+the selection bounds and adds a question to the composer. Both add an ordinary,
+removable image attachment to the selected conversation; nothing is sent until the
+user sends the message. Its expandable summary shows the exact attached board,
+screenshot and JSON. Removing the attachment removes both image and context.
+
+Context includes selected shapes first, visible shapes, page-space bounds, camera,
+selection, summaries of offscreen clusters, and recent shape edits. It is stable in
+shape order and bounded to 100 detailed shapes, 500 text characters per shape,
+24 offscreen clusters, 10 recent edit batches and 64 KB of serialized context.
+Truncation counts are explicit. The screenshot is bounded to 1600 pixels on its
+longest edge, then passes through Berd's existing image normalization. Attachment
+payload limits apply to image and context together.
+
+This follows tldraw's visual + structured context architecture without importing
+its independent agent loop:
+https://tldraw.dev/starter-kits/agent
+
+The existing agent receives the screenshot as an ACP image block and the structure
+as text through Berd's ordinary queue. A provider must support image inputs to
+interpret screenshots. Attaching a board sends that snapshot to the selected
+provider when the message is submitted; local storage does not make inference
+local. Canvas text is identified as user-provided content rather than instructions.
+
+## Agent editing
+
+The bundled `creative-canvas` skill documents `berdctl canvas` commands. Use
+`berdctl canvas --help` for the authoritative generated surface. In addition to
+notes, text and geometry, commands cover bound arrows, persistent image imports,
+deleting, grouping/ungrouping, moving/resizing batches, aligning, distributing,
+reordering, viewport navigation and undo. Commands validate bounded inputs and
+operate on a visible, mounted board. Project targets must belong to the named
+session. Explicit board IDs must belong to the selected scope's catalog.
+
+Mutations appear immediately, announce feedback on the canvas, and stop undo history
+at logical operations. Delete remains reversible through undo. Image placement
+copies PNG/JPEG/WebP bytes into the same local asset adapter; arbitrary remote URLs,
+SVG payloads and blob URLs are not accepted as agent image sources.
+
+## Editable portable bundles
+
+More → Export editable bundle downloads `.creative.zip` containing all boards in the current
+scope, editable tldraw documents and their actual media. PNG export is a separate
+rendered output. Import editable bundle validates the archive before publishing imported
+boards. Imports receive fresh board IDs, preserving existing boards even when names
+match. Unsupported versions, malformed records, external asset dependencies,
+missing media, unsafe archive paths and oversized archives are rejected.
+
+The format supports at most 100 boards, a 100 MB compressed/expanded archive budget
+and 25 MB per asset. SVG, remote media dependencies and bookmark image previews
+are rejected; plain link/text bookmarks remain editable. Bundles contain the board's media and creative brief; they do
+not contain agent credentials, chat histories or provider settings. Store private
+project bundles privately.
+
+## Reference → brief → variations → export
+
+1. Import reference images using the canvas image tool.
+2. Select the references. Open Creative workflow and choose Draft brief in chat.
+   The existing selected agent receives the visual context when you send and can
+   write a creative brief as a canvas note using `berdctl`.
+3. Select its note and choose Use selected note as brief, or write your own brief.
+   The brief is saved in the board document and travels with editable bundles.
+4. Select up to four reference images, choose 1–4 variations, and Generate variations.
+   Generated PNGs are stored as ordinary persistent image assets on the board.
+5. Arrange the images manually or ask the existing agent to arrange them. Export
+   PNG for a rendered composition or More → Export editable bundle for all editable boards/media.
+
+The optional image capability uses the official OpenAI Images API directly from
+the native shell, fixed to `gpt-image-2`. It is an image operation, not another chat
+agent. It uses `/v1/images/edits` with references and `/v1/images/generations` without
+references. Current API documentation:
+https://developers.openai.com/api/docs/guides/image-generation
+
+Set `CREATIVE_OPENAI_API_KEY` (preferred) or `OPENAI_API_KEY` in the process environment
+before starting the desktop app. The key stays in the native process and is never
+returned to the renderer, embedded in a bundle, or placed in `VITE_` settings. There
+is no silent fallback to coding subscriptions or existing voice credentials. OpenAI
+API access and billing are separate from coding subscriptions. The UI reports when
+image API access is not configured. A configured key is not proof of account quota
+or model entitlement; provider errors are shown without response bodies or secrets.
+There are no automatic retries of paid generation requests.
+
+Paid generation must be tested with legitimate configured access before claiming a
+live generation result. Browser tests with deterministic image responses validate
+client behavior only and do not establish provider availability.
 
 ## Run locally
 
-Requirements: Node 22.12+, pnpm, Rust (the pinned toolchain), and Xcode on macOS.
-Review and accept Xcode's license before the first native build.
+Requirements: Node 22.12+, pnpm, Rust (pinned toolchain), Xcode on macOS, and an
+accepted Xcode license.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev:creative
 ```
 
-The first run builds the pinned Goose backend if `GOOSE_BIN` is not supplied.
-To test against an existing compatible Goose binary, explicitly set `GOOSE_BIN`
-to its absolute path. The launcher does not discover or copy account credentials.
-Connect providers through the app's normal setup flow.
-
-Creative Harness uses its own Tauri identifier, URL scheme, and Goose state root
-so it can run alongside the official Berd application. The launcher disables
-updating and automatic system CLI installation. The underlying Rust executable
-and some upstream UI text still use the Berd name.
-
-## tldraw licensing and assets
-
-Copy `.env.example` to `.env.local` and set `VITE_TLDRAW_LICENSE_KEY` when you
-receive your hobby license. Restart development or rebuild after changing it.
-The key is a public client-side license key; provider credentials do not belong
-in any `VITE_` variable. Production requires a valid tldraw license. This fork
-does not disable or bypass the license checker or attribution.
-
-`pnpm canvas:assets` copies the pinned tldraw fonts, icons, translations, and
-license into `public/tldraw/`. Dev and build commands prepare these automatically.
-The generated directory is ignored by Git and included in the frontend build.
-
-Berd and Goose retain their Apache-2.0 licenses. The tldraw SDK and its assets
-retain their separate tldraw license. This implementation uses the SDK directly;
-it does not bundle the starter kit's separate agent loop.
-
-## Scope of this first slice
-
-This provides a persistent visual workspace and agent-editable board. It is not
-yet a FLORA-style generation graph: image/video generation, node execution,
-provider billing, timeline editing, and portable project bundles remain separate
-future features. Canvas content can be sent to the selected provider when the
-user asks the agent to inspect it; local storage does not make remote inference
-offline.
-
-## Verification
+The first run builds the pinned Goose backend unless `GOOSE_BIN` explicitly names
+a compatible binary. Example with the installed Berd backend:
 
 ```sh
+GOOSE_BIN=/Applications/Berd.app/Contents/MacOS/goosed VITE_PORT=1541 pnpm dev:creative
+```
+
+`CARGO_TARGET_DIR` may point to an existing build cache. Creative Harness has its own
+Tauri identifier, URL scheme and Goose state root. It disables automatic updating
+and system CLI installation. The Rust executable retains the Berd name. This is
+not the separate original Creative Harness app.
+
+## tldraw licensing
+
+Set the public client-side `VITE_TLDRAW_LICENSE_KEY` in `.env.local` when the hobby
+license arrives, then restart or rebuild. Production requires a valid license.
+This fork does not bypass license checking or attribution. `pnpm canvas:assets`
+prepares the pinned SDK's fonts, icons and translations locally; dev/build run it
+automatically. Berd/Goose remain Apache-2.0; tldraw retains its separate license.
+
+## Verification commands
+
+```sh
+pnpm typecheck
+pnpm check
 pnpm test
 pnpm build
-pnpm exec playwright install chromium
 pnpm test:canvas
 cd src-tauri
 cargo test -p berdctl
 ```
 
-The browser suite uses the real canvas editor and command dispatcher with a
-mocked Tauri/ACP transport. It covers edits, undo, closed-board rejection,
-chat isolation, project sharing across reloads, image persistence, PNG export,
-and the native app's minimum window size. CI runs this suite.
-
-Native development was also exercised on macOS using the installed Berd
-`goosed` as an explicit override: Codex's existing sign-in was detected, a live
-conversation completed, and canvas CLI commands changed the visible board.
-A signed/notarized release bundle and production tldraw license activation
-are not part of this development build.
+The canvas browser suite runs the real editor, IndexedDB, image decoding, action
+dispatch and composer queue with a mocked native/ACP shell. Native verification
+must separately exercise the selected existing agent and shell. A signed/notarized
+release and production license activation require separate release verification.

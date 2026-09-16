@@ -78,4 +78,29 @@ describe("getCanvasBoardIdentity", () => {
       }),
     ).toThrow("projectId is required for a project canvas");
   });
+
+  it("keeps an explicit default board on the original persistence key", () => {
+    const implicit = getCanvasBoardIdentity({
+      scope: "project",
+      sessionId: "s",
+      projectId: "p",
+    });
+    const explicit = getCanvasBoardIdentity({
+      scope: "project",
+      sessionId: "s",
+      projectId: "p",
+      boardId: implicit.boardId,
+    });
+    expect(explicit).toEqual(implicit);
+  });
+
+  it("rejects unsafe catalog board ids", () => {
+    expect(() =>
+      getCanvasBoardIdentity({
+        scope: "chat",
+        sessionId: "s",
+        boardId: "../escape",
+      }),
+    ).toThrow(/unsupported/);
+  });
 });

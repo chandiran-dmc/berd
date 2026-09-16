@@ -159,6 +159,7 @@ export function ChatView({
   const [conversationAttachmentDragOver, setConversationAttachmentDragOver] =
     useState(false);
   const [canvasVisible, setCanvasVisible] = useState(false);
+  const [canvasChatCollapsed, setCanvasChatCollapsed] = useState(false);
   const transcriptSearchRootRef = useRef<HTMLDivElement | null>(null);
   const transcriptSearchBackendRef = useRef<TranscriptSearchBackend | null>(
     null,
@@ -900,6 +901,10 @@ export function ChatView({
             canvasVisible &&
             "flex-col min-[1100px]:flex-row",
           !isAgentBuilderSession &&
+            canvasVisible &&
+            canvasChatCollapsed &&
+            "!flex-row",
+          !isAgentBuilderSession &&
             (effectiveHasVisibleRightRail ||
               isArtifactViewerOpen ||
               canvasVisible) &&
@@ -928,7 +933,8 @@ export function ChatView({
           className={cn(
             "relative flex min-w-0 flex-col",
             canvasVisible &&
-              "h-[40%] min-h-[220px] min-w-[340px] flex-none min-[1100px]:h-auto min-[1100px]:w-[360px]",
+              "h-[40%] min-h-[180px] min-w-0 flex-none min-[1100px]:h-auto min-[1100px]:w-[360px] min-[1100px]:max-w-[40%]",
+            canvasVisible && canvasChatCollapsed && "!hidden",
             !isAgentBuilderSession && "flex-1",
             isAgentBuilderSession && "agent-builder-column-enter",
             // While editing an agent the chat lives in a grid track that can
@@ -941,7 +947,12 @@ export function ChatView({
           // order, pointer events, and the a11y tree in one step, so keyboard
           // and screen-reader users can't land in the invisible zero-width
           // panel while its focusable children stay mounted.
-          inert={isAgentBuilderChatCollapsed ? true : undefined}
+          inert={
+            isAgentBuilderChatCollapsed ||
+            (canvasVisible && canvasChatCollapsed)
+              ? true
+              : undefined
+          }
           style={{
             ...agentBuilderChatColumnStyle,
             // While the viewer is open, the conversation keeps a readable
@@ -1037,6 +1048,8 @@ export function ChatView({
             sessionId={timelineSessionId}
             projectId={effectiveSession?.projectId}
             onVisibilityChange={setCanvasVisible}
+            chatCollapsed={canvasChatCollapsed}
+            onToggleChat={() => setCanvasChatCollapsed((current) => !current)}
           />
         ) : null}
 

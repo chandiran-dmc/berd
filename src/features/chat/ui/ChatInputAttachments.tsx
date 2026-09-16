@@ -44,6 +44,23 @@ function DraftImageAttachment({
         </TooltipTrigger>
         <TooltipContent>{attachment.path ?? attachment.name}</TooltipContent>
       </Tooltip>
+      {attachment.canvasContext ? (
+        <details
+          className="max-w-64 text-xs text-muted-foreground"
+          data-testid="canvas-context-attachment"
+        >
+          <summary className="cursor-pointer">{attachment.name}</summary>
+          <p>{attachment.canvasContext.summary}</p>
+          <p className="break-all">
+            {t("attachments.canvasBoard", {
+              boardId: attachment.canvasContext.boardId,
+            })}
+          </p>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap">
+            {attachment.canvasContext.json}
+          </pre>
+        </details>
+      ) : null}
       <button
         type="button"
         onClick={() => onRemove(attachment.id)}

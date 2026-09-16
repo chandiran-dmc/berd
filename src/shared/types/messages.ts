@@ -81,6 +81,7 @@ export interface ChatImageAttachmentDraft {
   mimeType: string;
   base64: string;
   previewUrl: string;
+  canvasContext?: { boardId: string; summary: string; json: string };
 }
 
 export interface ChatFileAttachmentDraft {

@@ -5,6 +5,7 @@ import {
   type TLAssetStore,
   type TLStore,
   type TLStoreSnapshot,
+  type TLRecord,
 } from "tldraw";
 
 const DOCUMENT_STORE = "document";
@@ -92,6 +93,97 @@ class CanvasDatabase {
     }
     await transactionDone(transaction);
   }
+
+  async readAssets(assetIds: string[]) {
+    const database = await this.database;
+    const transaction = database.transaction(ASSET_STORE, "readonly");
+    const values = await Promise.all(
+      assetIds.map((id) =>
+        requestResult<Blob | undefined>(
+          transaction.objectStore(ASSET_STORE).get(id),
+        ),
+      ),
+    );
+    await transactionDone(transaction);
+    return new Map(assetIds.map((id, index) => [id, values[index] ?? null]));
+  }
+
+  async readDocument() {
+    return this.loadDocument();
+  }
+
+  async writeDocument(snapshot: TLStoreSnapshot) {
+    return this.saveDocument(snapshot);
+  }
+
+  /** Keep the read/merge/write and new media in one IndexedDB transaction. */
+  async updateDocumentAndAssets(
+    update: (snapshot: TLStoreSnapshot | undefined) => TLStoreSnapshot,
+    assets: Map<string, Blob>,
+  ) {
+    const database = await this.database;
+    const transaction = database.transaction(
+      [DOCUMENT_STORE, ASSET_STORE],
+      "readwrite",
+    );
+    const done = transactionDone(transaction);
+    let result: TLStoreSnapshot | undefined;
+    let failure: unknown;
+    const request = transaction.objectStore(DOCUMENT_STORE).get("current");
+    request.onsuccess = () => {
+      try {
+        result = update(request.result);
+        transaction.objectStore(DOCUMENT_STORE).put(result, "current");
+        for (const [id, blob] of assets)
+          transaction.objectStore(ASSET_STORE).put(blob, id);
+      } catch (error) {
+        failure = error;
+        transaction.abort();
+      }
+    };
+    try {
+      await done;
+    } catch (error) {
+      throw failure ?? error;
+    }
+    if (!result) throw new Error("Document update did not complete");
+    return result;
+  }
+
+  async replaceDocumentAndAssets(
+    snapshot: TLStoreSnapshot,
+    assets: Map<string, Blob>,
+  ) {
+    const database = await this.database;
+    const transaction = database.transaction(
+      [DOCUMENT_STORE, ASSET_STORE],
+      "readwrite",
+    );
+    const done = transactionDone(transaction);
+    transaction.objectStore(DOCUMENT_STORE).put(snapshot, "current");
+    for (const [id, blob] of assets)
+      transaction.objectStore(ASSET_STORE).put(blob, id);
+    await done;
+  }
+
+  async clear() {
+    const database = await this.database;
+    const transaction = database.transaction(
+      [DOCUMENT_STORE, ASSET_STORE],
+      "readwrite",
+    );
+    const done = transactionDone(transaction);
+    transaction.objectStore(DOCUMENT_STORE).clear();
+    transaction.objectStore(ASSET_STORE).clear();
+    await done;
+  }
+
+  async deleteDocument() {
+    const database = await this.database;
+    const transaction = database.transaction(DOCUMENT_STORE, "readwrite");
+    transaction.objectStore(DOCUMENT_STORE).delete("current");
+    await transactionDone(transaction);
+  }
 }
 
 const databases = new Map<string, CanvasDatabase>();
@@ -103,6 +195,11 @@ function getDatabase(persistenceKey: string) {
     databases.set(persistenceKey, database);
   }
   return database;
+}
+
+/** Low-level access used by the editable project bundle importer/exporter. */
+export function getCanvasPersistenceDatabase(persistenceKey: string) {
+  return getDatabase(persistenceKey);
 }
 
 export interface PersistentCanvasStore {
@@ -139,8 +236,25 @@ export async function loadPersistentCanvasStore(
   };
   const store = createTLStore({ assets, snapshot });
   const channel = new BroadcastChannel(`berd-canvas:${persistenceKey}`);
-  channel.onmessage = (event: MessageEvent<TLStoreSnapshot>) => {
-    store.mergeRemoteChanges(() => loadSnapshot(store, event.data));
+  channel.onmessage = (
+    event: MessageEvent<
+      | TLStoreSnapshot
+      | { kind: "records"; records: TLRecord[]; excludeStoreId?: string }
+    >,
+  ) => {
+    try {
+      if ("kind" in event.data && event.data.kind === "records") {
+        const message = event.data;
+        if (message.excludeStoreId !== store.id)
+          store.mergeRemoteChanges(() => store.put(message.records));
+      } else {
+        store.mergeRemoteChanges(() =>
+          loadSnapshot(store, event.data as TLStoreSnapshot),
+        );
+      }
+    } catch (error) {
+      onError(error);
+    }
   };
   const stopListening = store.listen(
     () => {
@@ -166,4 +280,14 @@ export async function loadPersistentCanvasStore(
       objectUrls.clear();
     },
   };
+}
+
+export function broadcastCanvasRecords(
+  persistenceKey: string,
+  records: TLRecord[],
+  excludeStoreId?: string,
+) {
+  const channel = new BroadcastChannel(`berd-canvas:${persistenceKey}`);
+  channel.postMessage({ kind: "records", records, excludeStoreId });
+  channel.close();
 }

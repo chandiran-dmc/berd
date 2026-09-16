@@ -237,6 +237,7 @@ export function ConversationComposerCapability({
       : undefined;
   return (
     <ChatInput
+      canvasSessionId={target.sessionId}
       className={securityConfirmationPending ? "hidden" : undefined}
       surface={renderingPolicy.presentation.surface}
       innerBareSurface={renderingPolicy.presentation.innerBareSurface}

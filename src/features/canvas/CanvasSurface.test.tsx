@@ -8,15 +8,18 @@ vi.mock("./CanvasWorkspace", () => ({
     initialScope,
     onClose,
     visible,
+    chatCollapsed,
   }: {
     initialScope: string;
     onClose: () => void;
     visible: boolean;
+    chatCollapsed?: boolean;
   }) => (
     <div
       data-testid="mock-canvas-workspace"
       data-scope={initialScope}
       data-visible={visible}
+      data-chat-collapsed={chatCollapsed}
     >
       <button type="button" onClick={onClose}>
         Close mock canvas
@@ -32,11 +35,13 @@ afterEach(() => {
 describe("CanvasSurface", () => {
   it("opens lazily from its toggle and closes back to the toggle", async () => {
     const onVisibilityChange = vi.fn();
+    const onToggleChat = vi.fn();
     render(
       <CanvasSurface
         sessionId="session-1"
         projectId="project-1"
         onVisibilityChange={onVisibilityChange}
+        onToggleChat={onToggleChat}
       />,
     );
 
@@ -48,10 +53,11 @@ describe("CanvasSurface", () => {
     await waitFor(() =>
       expect(screen.getByTestId("mock-canvas-workspace")).toHaveAttribute(
         "data-scope",
-        "chat",
+        "project",
       ),
     );
     expect(onVisibilityChange).toHaveBeenLastCalledWith(true);
+    expect(onToggleChat).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Close mock canvas" }));
 
@@ -59,6 +65,25 @@ describe("CanvasSurface", () => {
       expect(screen.getByTestId("canvas-toggle")).toBeInTheDocument(),
     );
     expect(onVisibilityChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("restores chat when a full-width project canvas closes", async () => {
+    const onToggleChat = vi.fn();
+    render(
+      <CanvasSurface
+        sessionId="session-1"
+        projectId="project-1"
+        chatCollapsed
+        onToggleChat={onToggleChat}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("canvas-toggle"));
+    await screen.findByTestId("mock-canvas-workspace");
+    expect(onToggleChat).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close mock canvas" }));
+    expect(onToggleChat).toHaveBeenCalledTimes(1);
   });
 
   it("opens only for a matching session and preserves the requested scope", async () => {

@@ -7,6 +7,7 @@ import { CommandError } from "../types";
 export async function resolveCanvasTarget(args: {
   session_id: string;
   project_id?: string;
+  board_id?: string;
   scope: CanvasScope;
 }) {
   const [{ loadSessionForBerdctl, requireSession }, { findProjectOrThrow }] =
@@ -35,9 +36,23 @@ export async function resolveCanvasTarget(args: {
       `Session "${args.session_id}" is not attached to project "${args.project_id}".`,
     );
   }
-  return getCanvasBoardIdentity({
+  const boardTarget = {
     sessionId: session.id,
-    projectId: args.project_id,
+    projectId: args.project_id ?? session.projectId,
     scope: args.scope,
-  });
+    boardId: args.board_id,
+  };
+  if (args.board_id) {
+    const { loadCanvasBoardCatalog } = await import(
+      "@/features/canvas/boardCatalog"
+    );
+    const catalog = await loadCanvasBoardCatalog(boardTarget);
+    if (!catalog.boards.some((board) => board.boardId === args.board_id)) {
+      throw new CommandError(
+        "invalid_args",
+        `Board "${args.board_id}" does not belong to this canvas.`,
+      );
+    }
+  }
+  return getCanvasBoardIdentity(boardTarget);
 }

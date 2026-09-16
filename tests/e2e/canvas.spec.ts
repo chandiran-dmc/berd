@@ -167,11 +167,15 @@ test("narrow desktop keeps canvas controls and chat usable", async ({
   await page.setViewportSize({ width: 608, height: 600 });
   await open(page);
   await expect(page.getByTestId("canvas-close")).toBeVisible();
-  await expect(page.getByTestId("canvas-scope-project")).toBeEnabled();
+  await expect(
+    page.getByRole("combobox", { name: "Canvas scope", exact: true }),
+  ).toBeEnabled();
   await expect(
     page.getByRole("textbox", { name: "Chat message input" }),
   ).toBeVisible();
-  await page.getByTestId("canvas-scope-project").click();
+  await page
+    .getByRole("combobox", { name: "Canvas scope", exact: true })
+    .selectOption("project");
   await expect(page.getByTestId("canvas-editor")).toHaveAttribute(
     "data-canvas-board-id",
     "project:project-alpha",
@@ -230,4 +234,340 @@ test("imported image assets survive reopening the chat", async ({ page }) => {
         ),
     )
     .toBe(true);
+});
+
+test("selection attachment carries screenshot and bounded structure through the existing agent queue", async ({
+  page,
+}) => {
+  await page.addInitScript({
+    content: buildInitScript({
+      sessions: [
+        {
+          sessionId: sessionA,
+          title: "Creative study",
+          projectId,
+          messageCount: 0,
+        },
+      ],
+    }).replace(
+      'case "session/prompt": {',
+      'case "session/prompt": { window.__canvasPrompts = [...(window.__canvasPrompts || []), message.params];',
+    ),
+  });
+  await page.reload();
+  await open(page);
+  const created = await command(page, {
+    action: "add",
+    session_id: sessionA,
+    kind: "rectangle",
+    x: 10,
+    y: 10,
+    text: "Reference direction",
+  });
+  await page
+    .getByRole("button", { name: "Ask about selection", exact: true })
+    .click();
+  await expect(page.getByTestId("canvas-context-attachment")).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Chat message input" }),
+  ).toHaveValue(/Help me develop/);
+  await page
+    .getByTestId("canvas-context-attachment")
+    .locator("summary")
+    .click();
+  await expect(page.getByTestId("canvas-context-attachment")).toContainText(
+    created.shape_id,
+  );
+  await page
+    .getByRole("textbox", { name: "Chat message input" })
+    .press("Enter");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __canvasPrompts?: unknown[] }).__canvasPrompts
+            ?.length ?? 0,
+      ),
+    )
+    .toBeGreaterThan(0);
+  const request = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __canvasPrompts: {
+            sessionId: string;
+            prompt: { type: string; text?: string; data?: string }[];
+          }[];
+        }
+      ).__canvasPrompts[0],
+  );
+  expect(request.sessionId).toBe(sessionA);
+  expect(
+    request.prompt.some(
+      (block) => block.type === "image" && (block.data?.length ?? 0) > 100,
+    ),
+  ).toBe(true);
+  const text = request.prompt.map((block) => block.text ?? "").join("\n");
+  expect(text).toContain('"selectedShapeIds"');
+  expect(text).toContain('"camera"');
+  expect(text).toContain(created.shape_id);
+});
+
+test("project boards can be named, switched and canvas fills the workspace when chat collapses", async ({
+  page,
+}, testInfo) => {
+  await open(page, sessionA, "project");
+  await page
+    .getByRole("textbox", { name: "Board name", exact: true })
+    .fill("Explorations");
+  await page.getByRole("button", { name: "New board", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Board", exact: true }),
+  ).toContainText("Explorations");
+  const board = await page
+    .getByRole("combobox", { name: "Board", exact: true })
+    .inputValue();
+  expect(board).toMatch(/^board:/);
+  await page.getByRole("button", { name: "Hide chat", exact: true }).click();
+  await expect(page.locator("[data-chat-column]")).toBeHidden();
+  const workspace = await page.getByTestId("canvas-workspace").boundingBox();
+  expect(workspace?.width).toBeGreaterThan(1000);
+  await page.screenshot({ path: testInfo.outputPath("project-desktop.png") });
+  await page.setViewportSize({ width: 608, height: 600 });
+  await expect(
+    page.getByRole("button", { name: "Show chat", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("project-narrow.png") });
+  await page.getByRole("button", { name: "Show chat", exact: true }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Chat message input" }),
+  ).toBeVisible();
+  await page.reload();
+  await open(page, sessionB, "project");
+  await expect(
+    page.getByRole("combobox", { name: "Board", exact: true }),
+  ).toContainText("Explorations");
+  await page
+    .getByRole("combobox", { name: "Board", exact: true })
+    .selectOption(board);
+  await expect(page.getByTestId("canvas-editor")).toHaveAttribute(
+    "data-canvas-board-id",
+    board,
+  );
+});
+
+test("typed agent actions bind arrows, arrange groups and undo logical operations", async ({
+  page,
+}) => {
+  await open(page);
+  const ids: string[] = [];
+  for (let index = 0; index < 3; index++) {
+    const result = await command(page, {
+      action: "add",
+      session_id: sessionA,
+      kind: "rectangle",
+      x: index * 350,
+      y: index * 60,
+      text: `Direction ${index + 1}`,
+    });
+    ids.push(result.shape_id);
+  }
+  await command(page, {
+    action: "connect",
+    session_id: sessionA,
+    from_shape_id: ids[0],
+    to_shape_id: ids[1],
+    text: "Explore",
+  });
+  expect(
+    (await context(page)).shapes.some(
+      (shape: { type: string }) => shape.type === "arrow",
+    ),
+  ).toBe(true);
+  const bindings = await page.evaluate(async () => {
+    const path = "/src/features/canvas/runtime.ts";
+    const { getMountedEditor } = await import(/* @vite-ignore */ path);
+    return getMountedEditor()
+      .store.allRecords()
+      .filter((record: { typeName: string }) => record.typeName === "binding")
+      .length;
+  });
+  expect(bindings).toBe(2);
+  await command(page, {
+    action: "align",
+    session_id: sessionA,
+    shape_ids: ids,
+    alignment: "top",
+  });
+  await command(page, {
+    action: "distribute",
+    session_id: sessionA,
+    shape_ids: ids,
+    axis: "horizontal",
+  });
+  await command(page, {
+    action: "group",
+    session_id: sessionA,
+    shape_ids: ids,
+  });
+  const group = (await context(page)).shapes.find(
+    (shape: { type: string }) => shape.type === "group",
+  );
+  expect(group).toBeTruthy();
+  await command(page, {
+    action: "ungroup",
+    session_id: sessionA,
+    group_ids: [group.id],
+  });
+  expect(
+    (await context(page)).shapes.some(
+      (shape: { type: string }) => shape.type === "group",
+    ),
+  ).toBe(false);
+  await command(page, {
+    action: "delete",
+    session_id: sessionA,
+    confirm: true,
+    shape_ids: ids,
+  });
+  expect(
+    (await context(page)).shapes.filter(
+      (shape: { type: string }) => shape.type === "rectangle",
+    ),
+  ).toHaveLength(0);
+  await command(page, { action: "undo", session_id: sessionA, steps: 1 });
+  expect(
+    (await context(page)).shapes.filter(
+      (shape: { type: string }) => shape.type === "rectangle",
+    ),
+  ).toHaveLength(3);
+});
+
+test("creative workflow places provider images as persistent assets (mock provider, real editor)", async ({
+  page,
+}) => {
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 80;
+    canvas.height = 60;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ca6c48";
+    ctx.fillRect(0, 0, 80, 60);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  const init = buildInitScript({
+    sessions: [
+      {
+        sessionId: sessionA,
+        title: "Creative study",
+        projectId,
+        messageCount: 0,
+      },
+    ],
+  }).replace(
+    "switch (cmd) {",
+    `switch (cmd) {
+    case "get_canvas_generation_status": return Promise.resolve({configured:true,provider:"OpenAI",model:"gpt-image-2",supportsReferences:true});
+    case "generate_canvas_images": window.__generationRequest = args.request; return new Promise(resolve => { const complete = () => resolve({model:"gpt-image-2",images:Array.from({length:args.request.count},()=>({data:${JSON.stringify(png)},mimeType:"image/png"}))}); if(window.__holdGeneration) window.__finishGeneration = complete; else complete(); });`,
+  );
+  await page.addInitScript({ content: init });
+  await page.reload();
+  await open(page);
+  await command(page, {
+    action: "image",
+    session_id: sessionA,
+    src: `data:image/png;base64,${png}`,
+    mime_type: "image/png",
+    name: "Reference.png",
+    x: 0,
+    y: 0,
+    width: 80,
+    height: 60,
+  });
+  await page.getByTestId("creative-workflow").locator("summary").click();
+  await page
+    .getByRole("textbox", { name: "Creative brief", exact: true })
+    .fill(
+      "A terracotta poster inspired by the selected reference, bold typography and warm natural light.",
+    );
+  await page
+    .getByRole("button", { name: "Generate variations", exact: true })
+    .click();
+  await expect(page.getByTestId("creative-workflow")).toContainText(
+    "Saved 2 generated variations",
+  );
+  const request = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __generationRequest: {
+            prompt: string;
+            references: unknown[];
+            count: number;
+          };
+        }
+      ).__generationRequest,
+  );
+  expect(request.references).toHaveLength(1);
+  expect(request.count).toBe(2);
+  expect(request.prompt).toContain("terracotta");
+  expect(
+    (await context(page)).shapes.filter(
+      (shape: { type: string }) => shape.type === "image",
+    ),
+  ).toHaveLength(3);
+  await page.reload();
+  await open(page);
+  await expect.poll(async () => (await context(page)).shapeCount).toBe(3);
+  await expect
+    .poll(() =>
+      page
+        .locator("img.tl-image")
+        .evaluateAll((images) =>
+          images.every(
+            (image) =>
+              (image as HTMLImageElement).complete &&
+              (image as HTMLImageElement).naturalWidth > 0,
+          ),
+        ),
+    )
+    .toBe(true);
+  await page.getByTestId("creative-workflow").locator("summary").click();
+  await expect(
+    page.getByRole("textbox", { name: "Creative brief", exact: true }),
+  ).toHaveValue(/terracotta/);
+  await page.evaluate(() => {
+    (window as unknown as { __holdGeneration: boolean }).__holdGeneration =
+      true;
+  });
+  await page
+    .getByRole("button", { name: "Generate variations", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          typeof (window as unknown as { __finishGeneration?: () => void })
+            .__finishGeneration,
+      ),
+    )
+    .toBe("function");
+  await page.getByRole("button", { name: "New board", exact: true }).click();
+  await expect
+    .poll(async () =>
+      page.getByRole("combobox", { name: "Board", exact: true }).inputValue(),
+    )
+    .not.toBe(`chat:${sessionA}`);
+  await page.evaluate(() =>
+    (
+      window as unknown as { __finishGeneration: () => void }
+    ).__finishGeneration(),
+  );
+  await expect(
+    page.getByText(/Saved 2 generated variations to the original canvas board/),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Board", exact: true })
+    .selectOption(`chat:${sessionA}`);
+  await expect.poll(async () => (await context(page)).shapeCount).toBe(5);
 });

@@ -39,6 +39,19 @@ import { openCanvasCommand } from "./impl/openCanvas";
 import { getCanvasContextCommand } from "./impl/getCanvasContext";
 import { createCanvasShapeCommand } from "./impl/createCanvasShape";
 import { updateCanvasShapeCommand } from "./impl/updateCanvasShape";
+import { createCanvasArrowCommand } from "./impl/createCanvasArrow";
+import { connectCanvasShapesCommand } from "./impl/connectCanvasShapes";
+import { createCanvasImageCommand } from "./impl/createCanvasImage";
+import { deleteCanvasShapesCommand } from "./impl/deleteCanvasShapes";
+import { groupCanvasShapesCommand } from "./impl/groupCanvasShapes";
+import { ungroupCanvasShapesCommand } from "./impl/ungroupCanvasShapes";
+import { moveCanvasShapesCommand } from "./impl/moveCanvasShapes";
+import { resizeCanvasShapesCommand } from "./impl/resizeCanvasShapes";
+import { alignCanvasShapesCommand } from "./impl/alignCanvasShapes";
+import { distributeCanvasShapesCommand } from "./impl/distributeCanvasShapes";
+import { reorderCanvasShapesCommand } from "./impl/reorderCanvasShapes";
+import { setCanvasViewportCommand } from "./impl/setCanvasViewport";
+import { undoCanvasCommand } from "./impl/undoCanvas";
 import { submitFeedbackCommand } from "./impl/submitFeedback";
 import { commandBridgeTimeoutMs } from "./timeouts";
 import { CommandError, type CommandContext, type ToolGroup } from "./types";
@@ -203,17 +216,50 @@ export const ALL_TOOL_GROUPS = {
     },
   },
   canvas: {
-    description: "Open and inspect bounded, user-visible creative canvases.",
+    description:
+      "Open, inspect, and edit bounded, user-visible creative canvases with shapes, connectors, layout, viewport, and undo commands.",
     cli: {
       noun: "canvas",
-      about: "Open, inspect, and edit a visible creative canvas",
-      verbs: { open: "open", context: "context", add: "add", update: "update" },
+      about:
+        "Open, inspect, and edit a visible creative canvas: shapes, arrows, images, grouping, layout, viewport, and undo",
+      verbs: {
+        open: "open",
+        context: "context",
+        add: "add",
+        update: "update",
+        arrow: "arrow",
+        connect: "connect",
+        image: "image",
+        delete: "delete",
+        group: "group",
+        ungroup: "ungroup",
+        move: "move",
+        resize: "resize",
+        align: "align",
+        distribute: "distribute",
+        reorder: "reorder",
+        viewport: "viewport",
+        undo: "undo",
+      },
     },
     actions: {
       open: openCanvasCommand,
       context: getCanvasContextCommand,
       add: createCanvasShapeCommand,
       update: updateCanvasShapeCommand,
+      arrow: createCanvasArrowCommand,
+      connect: connectCanvasShapesCommand,
+      image: createCanvasImageCommand,
+      delete: deleteCanvasShapesCommand,
+      group: groupCanvasShapesCommand,
+      ungroup: ungroupCanvasShapesCommand,
+      move: moveCanvasShapesCommand,
+      resize: resizeCanvasShapesCommand,
+      align: alignCanvasShapesCommand,
+      distribute: distributeCanvasShapesCommand,
+      reorder: reorderCanvasShapesCommand,
+      viewport: setCanvasViewportCommand,
+      undo: undoCanvasCommand,
     },
   },
 } as const satisfies Record<string, ToolGroup>;

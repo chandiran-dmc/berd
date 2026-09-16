@@ -342,6 +342,102 @@ mod tests {
             ("canvas", "update") => {
                 vec!["--session-id", "s", "--shape-id", "shape:1", "--x", "-10"]
             }
+            ("canvas", "arrow") => vec![
+                "--session-id",
+                "s",
+                "--start-shape-id",
+                "shape:1",
+                "--end-shape-id",
+                "shape:2",
+            ],
+            ("canvas", "connect") => vec![
+                "--session-id",
+                "s",
+                "--from-shape-id",
+                "shape:1",
+                "--to-shape-id",
+                "shape:2",
+            ],
+            ("canvas", "image") => vec![
+                "--session-id",
+                "s",
+                "--path",
+                "/tmp/image.png",
+                "--name",
+                "image.png",
+                "--x",
+                "0",
+                "--y",
+                "0",
+                "--width",
+                "100",
+                "--height",
+                "100",
+            ],
+            ("canvas", "delete") => {
+                vec!["--session-id", "s", "--shape-ids", "shape:1", "--confirm"]
+            }
+            ("canvas", "group") | ("canvas", "align") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--shape-ids",
+                "shape:2",
+                if verb == "align" {
+                    "--alignment"
+                } else {
+                    "--scope"
+                },
+                if verb == "align" { "left" } else { "chat" },
+            ],
+            ("canvas", "ungroup") => {
+                vec!["--session-id", "s", "--group-ids", "shape:group"]
+            }
+            ("canvas", "move") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--delta-x",
+                "10",
+                "--delta-y",
+                "10",
+            ],
+            ("canvas", "resize") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--scale-x-percent",
+                "100",
+                "--scale-y-percent",
+                "100",
+            ],
+            ("canvas", "distribute") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--shape-ids",
+                "shape:2",
+                "--shape-ids",
+                "shape:3",
+                "--axis",
+                "horizontal",
+            ],
+            ("canvas", "reorder") => vec![
+                "--session-id",
+                "s",
+                "--shape-ids",
+                "shape:1",
+                "--position",
+                "front",
+            ],
+            ("canvas", "viewport") => {
+                vec!["--session-id", "s", "--mode", "fit"]
+            }
+            ("canvas", "undo") => vec!["--session-id", "s"],
             _ => return None,
         })
     }

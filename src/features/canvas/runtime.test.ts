@@ -18,11 +18,13 @@ vi.hoisted(() => {
 
 import {
   createCanvasShape,
+  executeCanvasAction,
   getCanvasContext,
   getMountedEditor,
   registerMountedEditor,
   updateCanvasShape,
 } from "./runtime";
+import { onCanvasAction } from "./actions";
 
 function makeEditor(overrides: Partial<Editor> = {}): Editor {
   return {
@@ -260,5 +262,242 @@ describe("canvas runtime editor registry", () => {
     expect(markHistoryStoppingPoint).toHaveBeenCalledTimes(2);
     expect(select).toHaveBeenCalledWith("shape:existing");
     expect(zoomToSelection).toHaveBeenCalledTimes(2);
+  });
+
+  it("executes validated batch editing as one logical history operation", async () => {
+    const identity = board("session-1", "project-1");
+    const shapes = new Map([
+      ["shape:one", { id: "shape:one", type: "geo", x: 10, y: 20 }],
+      ["shape:two", { id: "shape:two", type: "geo", x: 50, y: 60 }],
+      ["shape:three", { id: "shape:three", type: "geo", x: 90, y: 100 }],
+    ]);
+    const markHistoryStoppingPoint = vi.fn();
+    const updateShapes = vi.fn();
+    const alignShapes = vi.fn();
+    const distributeShapes = vi.fn();
+    const bringToFront = vi.fn();
+    const select = vi.fn();
+    const editor = makeEditor({
+      markHistoryStoppingPoint,
+      updateShapes,
+      alignShapes,
+      distributeShapes,
+      bringToFront,
+      select,
+      getShape: (id) => shapes.get(String(id)) as never,
+      getCurrentPageShapeIds: () => new Set(shapes.keys()) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await executeCanvasAction(
+      identity.boardId,
+      {
+        type: "move",
+        shapeIds: ["shape:one", "shape:two"],
+        deltaX: 5,
+        deltaY: -2,
+      },
+      { sessionId: "session-1", projectId: "project-1" },
+    );
+    await executeCanvasAction(identity.boardId, {
+      type: "align",
+      shapeIds: ["shape:one", "shape:two"],
+      alignment: "left",
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "distribute",
+      shapeIds: ["shape:one", "shape:two", "shape:three"],
+      axis: "horizontal",
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "reorder",
+      shapeIds: ["shape:one"],
+      position: "front",
+    });
+
+    expect(markHistoryStoppingPoint).toHaveBeenCalledTimes(4);
+    expect(updateShapes).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "shape:one", x: 15, y: 18 }),
+      expect.objectContaining({ id: "shape:two", x: 55, y: 58 }),
+    ]);
+    expect(alignShapes).toHaveBeenCalledWith(
+      ["shape:one", "shape:two"],
+      "left",
+    );
+    expect(distributeShapes).toHaveBeenCalledWith(
+      ["shape:one", "shape:two", "shape:three"],
+      "horizontal",
+    );
+    expect(bringToFront).toHaveBeenCalledWith(["shape:one"]);
+    expect(select).toHaveBeenCalled();
+  });
+
+  it("creates bound arrows and persistent image assets", async () => {
+    const identity = board("session-1");
+    const createShape = vi.fn();
+    const createAssets = vi.fn();
+    const createBindings = vi.fn();
+    const uploadAsset = vi.fn().mockResolvedValue({ src: "asset:stored" });
+    const editor = makeEditor({
+      markHistoryStoppingPoint: vi.fn(),
+      createShape,
+      createAssets,
+      createBindings,
+      uploadAsset,
+      select: vi.fn(),
+      getShape: (id) => ({ id, type: "geo", x: 0, y: 0 }) as never,
+      getCurrentPageShapeIds: () =>
+        new Set(["shape:start", "shape:end"]) as never,
+      getShapePageBounds: (shape) =>
+        ({
+          x: String(shape).includes("start") ? 0 : 200,
+          y: 0,
+          width: 100,
+          height: 100,
+          center: { x: String(shape).includes("start") ? 50 : 250, y: 50 },
+        }) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    const arrow = await executeCanvasAction(identity.boardId, {
+      type: "create-arrow",
+      startShapeId: "shape:start",
+      endShapeId: "shape:end",
+      text: "leads to",
+    });
+    const image = await executeCanvasAction(identity.boardId, {
+      type: "place-image",
+      src: "data:image/png;base64,iVBORw0KGgo=",
+      mimeType: "image/png",
+      name: "reference.png",
+      x: 20,
+      y: 30,
+      width: 320,
+      height: 180,
+    });
+
+    expect(arrow.affectedShapeIds).toContain("shape:start");
+    expect(createShape).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "arrow",
+        props: expect.objectContaining({ start: { x: 0, y: 0 } }),
+      }),
+    );
+    expect(createBindings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        fromId: expect.stringMatching(/^shape:/),
+        toId: "shape:start",
+        props: expect.objectContaining({ terminal: "start" }),
+      }),
+      expect.objectContaining({
+        fromId: expect.stringMatching(/^shape:/),
+        toId: "shape:end",
+        props: expect.objectContaining({ terminal: "end" }),
+      }),
+    ]);
+    expect(createAssets).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: "image",
+        props: expect.objectContaining({
+          src: "asset:stored",
+        }),
+      }),
+    ]);
+    expect(createShape).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "image", x: 20, y: 30 }),
+    );
+    expect(image.message).toContain("reference.png");
+  });
+
+  it("supports groups, deletion, viewport, undo, and visible feedback", async () => {
+    const identity = board("session-1");
+    const groupShapes = vi.fn();
+    const ungroupShapes = vi.fn();
+    const deleteShapes = vi.fn();
+    const zoomToFit = vi.fn();
+    const undo = vi.fn();
+    const messages: string[] = [];
+    const stopListening = onCanvasAction((event) =>
+      messages.push(event.message),
+    );
+    cleanupCallbacks.push(stopListening);
+    const editor = makeEditor({
+      markHistoryStoppingPoint: vi.fn(),
+      groupShapes,
+      ungroupShapes,
+      deleteShapes,
+      zoomToFit,
+      undo,
+      getShape: (id) =>
+        ({ id, type: String(id).includes("group") ? "group" : "geo" }) as never,
+      getCurrentPageShapeIds: () =>
+        new Set(["shape:one", "shape:two", "shape:group"]) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await executeCanvasAction(identity.boardId, {
+      type: "group",
+      shapeIds: ["shape:one", "shape:two"],
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "ungroup",
+      shapeIds: ["shape:group"],
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "delete",
+      shapeIds: ["shape:one"],
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "viewport",
+      mode: "fit",
+    });
+    await executeCanvasAction(identity.boardId, { type: "undo", steps: 2 });
+
+    expect(groupShapes).toHaveBeenCalled();
+    expect(ungroupShapes).toHaveBeenCalledWith(["shape:group"], {
+      select: true,
+    });
+    expect(deleteShapes).toHaveBeenCalledWith(["shape:one"]);
+    expect(zoomToFit).toHaveBeenCalled();
+    expect(undo).toHaveBeenCalledTimes(2);
+    expect(messages).toHaveLength(5);
+  });
+
+  it("rejects invalid, off-page, and wrongly scoped actions", async () => {
+    const identity = board("session-1", "project-1");
+    const editor = makeEditor({
+      getShape: (id) => ({ id, type: "geo" }) as never,
+      getCurrentPageShapeIds: () => new Set(["shape:current"]) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await expect(
+      executeCanvasAction(identity.boardId, {
+        type: "move",
+        shapeIds: ["shape:other"],
+        deltaX: 1,
+        deltaY: 1,
+      }),
+    ).rejects.toThrow("not on the current canvas page");
+    await expect(
+      executeCanvasAction(
+        identity.boardId,
+        {
+          type: "move",
+          shapeIds: ["shape:current"],
+          deltaX: 1,
+          deltaY: 1,
+        },
+        { projectId: "wrong" },
+      ),
+    ).rejects.toThrow("does not belong to project wrong");
+    await expect(
+      executeCanvasAction(identity.boardId, {
+        type: "resize",
+        shapeIds: ["shape:current"],
+        scaleX: 0,
+        scaleY: 1,
+      }),
+    ).rejects.toThrow();
   });
 });

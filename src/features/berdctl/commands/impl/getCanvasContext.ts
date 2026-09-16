@@ -13,6 +13,12 @@ const schema = z
       .min(1)
       .optional()
       .describe("Project id for a project canvas."),
+    board_id: z
+      .string()
+      .min(1)
+      .max(128)
+      .optional()
+      .describe("Named board id. Omit for the default board."),
     scope: z
       .enum(["chat", "project"])
       .default("chat")

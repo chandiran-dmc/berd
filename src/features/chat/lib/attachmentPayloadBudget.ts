@@ -52,6 +52,10 @@ export function promptAttachmentBytes(
   for (const attachment of attachments ?? []) {
     if (attachment.kind === "image") {
       total += attachment.base64.length;
+      if (attachment.canvasContext)
+        total += new TextEncoder().encode(
+          JSON.stringify(attachment.canvasContext),
+        ).length;
     }
   }
   return total;

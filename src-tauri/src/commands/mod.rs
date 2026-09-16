@@ -11,6 +11,7 @@ pub mod avatars;
 #[cfg(feature = "block-builderbot")]
 pub mod builderbot;
 pub mod cache;
+pub mod canvas_generation;
 #[cfg(feature = "block-agent-tools")]
 pub mod cli;
 #[cfg(feature = "block-managed-connections")]

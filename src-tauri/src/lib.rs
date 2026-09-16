@@ -468,6 +468,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::canvas_generation::get_canvas_generation_status,
+            commands::canvas_generation::generate_canvas_images,
             commands::pr_tracker::open_pr_tracker_url,
             commands::pr_tracker::resolve_pr_tracker_projects,
             commands::pr_tracker::list_pr_tracker_pull_requests,

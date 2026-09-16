@@ -1,3 +1,4 @@
+import { onCanvasAttachment } from "@/features/canvas/composerEvents";
 import {
   useState,
   useRef,
@@ -273,6 +274,7 @@ function useVisibleQueuedMessageIds(
 }
 
 export function ChatInput({
+  canvasSessionId,
   composerActions,
   initialValue = "",
   initialAttachments,
@@ -469,6 +471,24 @@ export function ChatInput({
   );
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  useEffect(
+    () =>
+      onCanvasAttachment((request) => {
+        if (
+          !canvasSessionId ||
+          request.sessionId !== canvasSessionId ||
+          !scopedControls.attachments
+        )
+          return;
+        replaceAttachments([...attachmentsRef.current, request.attachment]);
+        if (request.prompt)
+          setText(
+            [textRef.current, request.prompt].filter(Boolean).join("\n\n"),
+          );
+        textareaRef.current?.focus();
+      }),
+    [canvasSessionId, replaceAttachments, scopedControls.attachments, setText],
+  );
   const lastPersistedDraftAttachmentsRef = useRef<ChatAttachmentDraft[] | null>(
     null,
   );

@@ -8,7 +8,7 @@ export BERD_RELEASE_CHANNEL=disabled
 export BERD_DEV_APP_NAME="Creative Harness"
 export GOOSE_PATH_ROOT="${GOOSE_PATH_ROOT:-$HOME/Library/Application Support/dev.chandiran.creative-harness/goose}"
 export GOOSE_DISTRO_DIR="$PWD/distro"
-export CARGO_TARGET_DIR="$PWD/src-tauri/target"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/src-tauri/target}"
 mkdir -p "$GOOSE_PATH_ROOT"
 pnpm canvas:assets
 pnpm --filter @aaif/goose-sdk build:ts

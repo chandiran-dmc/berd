@@ -8,8 +8,45 @@ const mocks = vi.hoisted(() => ({
     getSelectedShapeIds: vi.fn(() => []),
     getSnapshot: vi.fn(() => ({ document: { store: {}, schema: {} } })),
     loadSnapshot: vi.fn(),
-    store: { listen: vi.fn(() => vi.fn()) },
+    store: {
+      listen: vi.fn(() => vi.fn()),
+      getStoreSnapshot: vi.fn(() => ({ store: {}, schema: {} })),
+    },
   },
+}));
+
+vi.mock("./CreativeWorkflow", () => ({
+  CreativeWorkflow: () => <div data-testid="creative-workflow" />,
+}));
+
+vi.mock("./actions", () => ({ onCanvasAction: () => vi.fn() }));
+
+vi.mock("./contextAttachment", () => ({
+  createCanvasAttachment: vi.fn(),
+  trackCanvasEdits: () => vi.fn(),
+}));
+
+vi.mock("./composerEvents", () => ({ attachCanvasToChat: vi.fn() }));
+
+vi.mock("./boardCatalog", () => ({
+  loadCanvasBoardCatalog: async (target: { scope: string }) => ({
+    boards: [
+      {
+        boardId:
+          target.scope === "project" ? "project:project-1" : "chat:session-1",
+        name: "Main board",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  }),
+  createCanvasBoard: vi.fn(),
+  renameCanvasBoard: vi.fn(),
+}));
+
+vi.mock("./portableBundles", () => ({
+  exportCanvasBundle: vi.fn(),
+  importCanvasBundle: vi.fn(),
 }));
 
 vi.mock("@tldraw/assets/selfHosted", () => ({
@@ -20,6 +57,9 @@ vi.mock("./persistence", () => ({
   loadPersistentCanvasStore: async () => ({
     store: {},
     dispose: vi.fn(async () => undefined),
+  }),
+  getCanvasPersistenceDatabase: () => ({
+    saveDocument: vi.fn(async () => undefined),
   }),
 }));
 
@@ -178,5 +218,39 @@ describe("CanvasWorkspace", () => {
       "aria-hidden",
       "true",
     );
+  });
+
+  it("offers a clear way back to chat when canvas is full width", async () => {
+    const onToggleChat = vi.fn();
+    renderWorkspace({ chatCollapsed: true, onToggleChat });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Show chat" }));
+
+    expect(onToggleChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps scope, board naming, and chat collapse accessible in the compact toolbar", async () => {
+    const onToggleChat = vi.fn();
+    renderWorkspace({ onToggleChat });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Canvas scope" }), {
+      target: { value: "project" },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas-editor")).toHaveAttribute(
+        "data-canvas-board-id",
+        "project:project-1",
+      ),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "Board name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New board" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide chat" }));
+    expect(onToggleChat).toHaveBeenCalledTimes(1);
   });
 });

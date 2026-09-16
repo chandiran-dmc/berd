@@ -220,6 +220,7 @@ export interface ChatInputControls {
 }
 
 export interface ChatInputProps {
+  canvasSessionId?: string | null;
   composerActions: ChatInputComposerActions;
   initialValue?: string;
   initialAttachments?: ChatAttachmentDraft[];

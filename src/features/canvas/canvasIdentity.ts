@@ -4,6 +4,8 @@ export interface CanvasBoardTarget {
   sessionId: string;
   projectId?: string | null;
   scope: CanvasScope;
+  /** A catalog-owned board id. Omit for the stable default board. */
+  boardId?: string | null;
 }
 
 export interface CanvasBoardIdentity {
@@ -33,6 +35,7 @@ export function getCanvasBoardIdentity(
 ): CanvasBoardIdentity {
   const sessionId = requireIdentifier(target.sessionId, "sessionId");
   const projectId = target.projectId?.trim() || null;
+  const requestedBoardIdRaw = target.boardId?.trim() || null;
 
   if (target.scope === "project" && !projectId) {
     throw new Error("projectId is required for a project canvas");
@@ -42,11 +45,22 @@ export function getCanvasBoardIdentity(
     target.scope === "project"
       ? `project:${encodeIdentifier(projectId as string)}`
       : `chat:${encodeIdentifier(sessionId)}`;
-  const boardId = `${target.scope}:${owner.slice(owner.indexOf(":") + 1)}`;
+  const defaultBoardId = `${target.scope}:${owner.slice(owner.indexOf(":") + 1)}`;
+  const requestedBoardId =
+    requestedBoardIdRaw === defaultBoardId ? null : requestedBoardIdRaw;
+  const boardId = requestedBoardId ?? defaultBoardId;
+  if (
+    requestedBoardId &&
+    !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(requestedBoardId)
+  ) {
+    throw new Error("boardId contains unsupported characters");
+  }
 
   return {
     boardId,
-    persistenceKey: `berd-canvas:${BOARD_ID_VERSION}:${owner}`,
+    persistenceKey: requestedBoardId
+      ? `berd-canvas:${BOARD_ID_VERSION}:${owner}:board:${encodeIdentifier(requestedBoardId)}`
+      : `berd-canvas:${BOARD_ID_VERSION}:${owner}`,
     scope: target.scope,
     sessionId,
     projectId,

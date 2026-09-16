@@ -4,6 +4,7 @@
     "description": "This chat is no longer available on the remote host. Any messages still available are shown above, but may disappear when you restart Berd. Save any important information before closing the app. Start a new chat to continue."
   },
   "attachments": {
+    "canvasBoard": "Board: {{boardId}}",
     "alt": "Attachment {{index}}",
     "chooseFilesDialogTitle": "Choose files to attach",
     "chooseFoldersDialogTitle": "Choose folders to attach",

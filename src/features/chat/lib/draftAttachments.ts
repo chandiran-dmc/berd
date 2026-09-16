@@ -66,7 +66,8 @@ export function draftAttachmentsEqual(
       return (
         attachment.mimeType === other.mimeType &&
         attachment.base64 === other.base64 &&
-        attachment.previewUrl === other.previewUrl
+        attachment.previewUrl === other.previewUrl &&
+        attachment.canvasContext?.json === other.canvasContext?.json
       );
     }
 

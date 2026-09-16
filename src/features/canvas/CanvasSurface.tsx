@@ -13,18 +13,23 @@ interface CanvasSurfaceProps {
   sessionId: string;
   projectId?: string | null;
   onVisibilityChange?: (visible: boolean) => void;
+  chatCollapsed?: boolean;
+  onToggleChat?: () => void;
 }
 
 export function CanvasSurface({
   sessionId,
   projectId,
   onVisibilityChange,
+  chatCollapsed,
+  onToggleChat,
 }: CanvasSurfaceProps) {
   const [state, setState] = useState<{
     hasOpened: boolean;
     visible: boolean;
     initialScope: CanvasScope;
     requestVersion: number;
+    boardId?: string | null;
   }>({
     hasOpened: false,
     visible: false,
@@ -33,11 +38,12 @@ export function CanvasSurface({
   });
 
   const open = useCallback(
-    (scope: CanvasScope = "chat") => {
+    (scope: CanvasScope = "chat", boardId?: string | null) => {
       setState((current) => ({
         hasOpened: true,
         visible: true,
         initialScope: scope,
+        boardId,
         requestVersion: current.requestVersion + 1,
       }));
       onVisibilityChange?.(true);
@@ -46,13 +52,14 @@ export function CanvasSurface({
   );
   const close = useCallback(() => {
     setState((current) => ({ ...current, visible: false }));
+    if (chatCollapsed) onToggleChat?.();
     onVisibilityChange?.(false);
-  }, [onVisibilityChange]);
+  }, [chatCollapsed, onToggleChat, onVisibilityChange]);
 
   useEffect(() => {
     const stopOpen = onOpenCanvas((request) => {
       if (request.sessionId !== sessionId) return;
-      open(request.scope);
+      open(request.scope, request.boardId);
     });
     const stopClose = onCloseCanvas((targetSessionId) => {
       if (targetSessionId === sessionId) close();
@@ -69,13 +76,15 @@ export function CanvasSurface({
         <button
           type="button"
           data-testid="canvas-toggle"
-          onClick={() => open("chat")}
-          aria-label="Open creative canvas"
-          title="Open creative canvas"
+          onClick={() => open(projectId ? "project" : "chat")}
+          aria-label={
+            projectId ? "Open project canvas" : "Open creative canvas"
+          }
+          title={projectId ? "Open project canvas" : "Open creative canvas"}
           className="absolute left-3 top-3 z-30 inline-flex h-8 items-center gap-1.5 rounded-full border border-border/80 bg-card/90 px-3 text-xs font-medium text-muted-foreground shadow-mini backdrop-blur transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <IconBrush className="size-4" aria-hidden="true" />
-          Canvas
+          {projectId ? "Project canvas" : "Canvas"}
         </button>
       ) : null}
       {state.hasOpened ? (
@@ -90,6 +99,9 @@ export function CanvasSurface({
             sessionId={sessionId}
             projectId={projectId}
             initialScope={state.initialScope}
+            initialBoardId={state.boardId}
+            chatCollapsed={chatCollapsed}
+            onToggleChat={onToggleChat}
             requestVersion={state.requestVersion}
             visible={state.visible}
             onClose={close}

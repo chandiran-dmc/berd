@@ -209,7 +209,7 @@
     },
     "canvas": {
       "group": "canvas",
-      "about": "Open, inspect, and edit a visible creative canvas",
+      "about": "Open, inspect, and edit a visible creative canvas: shapes, arrows, images, grouping, layout, viewport, and undo",
       "verbs": {
         "open": {
           "action": "open",
@@ -230,6 +230,71 @@
           "action": "update",
           "about": "Update one visible canvas shape",
           "afterHelp": "Example:\n  berdctl canvas update --session-id <session-id> --shape-id <shape-id> --text \"Approved\"\n\nResult:\n  {\"ok\": true} — the visible shape is updated."
+        },
+        "arrow": {
+          "action": "arrow",
+          "about": "Draw one visible canvas arrow",
+          "afterHelp": "Example:\n  berdctl canvas arrow --session-id <session-id> --start-shape-id <from-id> --end-shape-id <to-id>\n\nResult:\n  {\"action\": \"create-arrow\"} — the arrow is visible on the open canvas."
+        },
+        "connect": {
+          "action": "connect",
+          "about": "Connect two visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas connect --session-id <session-id> --from-shape-id <from-id> --to-shape-id <to-id>\n\nResult:\n  {\"shape_id\": \"...\"} — the connector is visible on the open canvas."
+        },
+        "image": {
+          "action": "image",
+          "about": "Place one visible image on the canvas",
+          "afterHelp": "Example:\n  berdctl canvas image --session-id <session-id> --path /absolute/path/sketch.png --name sketch.png --x 100 --y 100 --width 320 --height 200\n\nResult:\n  {\"action\": \"place-image\"} — the image is copied into the board's persistent asset store and appears on the open canvas."
+        },
+        "delete": {
+          "action": "delete",
+          "about": "Delete visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas delete --session-id <session-id> --shape-ids <shape-id> --confirm\n\nResult:\n  {\"deleted\": 1} — the selected shapes are removed from the visible canvas."
+        },
+        "group": {
+          "action": "group",
+          "about": "Group visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas group --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b>\n\nResult:\n  {\"group_id\": \"...\"} — the shapes are visibly grouped."
+        },
+        "ungroup": {
+          "action": "ungroup",
+          "about": "Ungroup visible canvas groups",
+          "afterHelp": "Example:\n  berdctl canvas ungroup --session-id <session-id> --group-ids <group-id>\n\nResult:\n  {\"ok\": true} — the group is removed and its shapes remain visible."
+        },
+        "move": {
+          "action": "move",
+          "about": "Move several visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas move --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b> --delta-x 40 --delta-y 0\n\nResult:\n  {\"ok\": true} — all named shapes move together."
+        },
+        "resize": {
+          "action": "resize",
+          "about": "Resize several visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas resize --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b> --scale-x-percent 125 --scale-y-percent 125\n\nResult:\n  {\"ok\": true} — all named shapes are resized."
+        },
+        "align": {
+          "action": "align",
+          "about": "Align visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas align --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b> --alignment left\n\nResult:\n  {\"ok\": true} — the selected shapes are visibly aligned."
+        },
+        "distribute": {
+          "action": "distribute",
+          "about": "Distribute visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas distribute --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b> --shape-ids <shape-c> --axis horizontal\n\nResult:\n  {\"ok\": true} — the selected shapes are evenly distributed."
+        },
+        "reorder": {
+          "action": "reorder",
+          "about": "Reorder visible canvas shapes",
+          "afterHelp": "Example:\n  berdctl canvas reorder --session-id <session-id> --shape-ids <shape-a> --position front\n\nResult:\n  {\"ok\": true} — the selected shapes move in the layer order."
+        },
+        "viewport": {
+          "action": "viewport",
+          "about": "Set the visible canvas viewport",
+          "afterHelp": "Example:\n  berdctl canvas viewport --session-id <session-id> --mode camera --x 320 --y 180 --zoom-percent 125\n\nResult:\n  {\"ok\": true} — the canvas viewport changes visibly."
+        },
+        "undo": {
+          "action": "undo",
+          "about": "Undo visible canvas changes",
+          "afterHelp": "Example:\n  berdctl canvas undo --session-id <session-id> --steps 1\n\nResult:\n  {\"ok\": true} — recent canvas changes are undone visibly."
         }
       }
     }

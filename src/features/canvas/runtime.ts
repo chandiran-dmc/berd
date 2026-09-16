@@ -1,11 +1,20 @@
 import { z } from "zod/v4";
 import {
+  AssetRecordType,
+  Box,
   createShapeId,
   renderPlaintextFromRichText,
   toRichText,
   type Editor,
+  type TLImageAsset,
   type TLShapeId,
 } from "tldraw";
+import {
+  announceCanvasAction,
+  canvasActionSchema,
+  type CanvasAction,
+  type CanvasActionResult,
+} from "./actions";
 import {
   closeCanvas,
   openCanvas,
@@ -158,6 +167,301 @@ function requireMountedEditor(boardId: string): Editor {
   return editor;
 }
 
+function requireCurrentPageShapeIds(
+  editor: Editor,
+  rawIds: string[],
+): TLShapeId[] {
+  const ids = [...new Set(rawIds)].map((id) => id as TLShapeId);
+  const currentIds = editor.getCurrentPageShapeIds();
+  const missing = ids.filter((id) => !editor.getShape(id));
+  if (missing.length)
+    throw new Error(`Shapes do not exist: ${missing.join(", ")}`);
+  const offPage = ids.filter((id) => !currentIds.has(id));
+  if (offPage.length) {
+    throw new Error(
+      `Shapes are not on the current canvas page: ${offPage.join(", ")}`,
+    );
+  }
+  return ids;
+}
+
+export interface CanvasActionTarget {
+  sessionId?: string;
+  projectId?: string | null;
+}
+
+function requireTarget(boardId: string, expected?: CanvasActionTarget): void {
+  if (!expected) return;
+  const mounted = mountedBoards.get(boardId);
+  if (!mounted) throw new Error(`Canvas ${boardId} is not open`);
+  if (
+    expected.sessionId !== undefined &&
+    expected.sessionId !== mounted.sessionId
+  ) {
+    throw new Error(
+      `Canvas ${boardId} does not belong to session ${expected.sessionId}`,
+    );
+  }
+  if (
+    mounted.scope === "project" &&
+    expected.projectId !== undefined &&
+    expected.projectId !== mounted.projectId
+  ) {
+    throw new Error(
+      `Canvas ${boardId} does not belong to project ${expected.projectId ?? "none"}`,
+    );
+  }
+}
+
+function hasExpectedImageSignature(mimeType: string, bytes: Uint8Array) {
+  if (mimeType === "image/png")
+    return [137, 80, 78, 71, 13, 10, 26, 10].every(
+      (value, index) => bytes[index] === value,
+    );
+  if (mimeType === "image/jpeg")
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  return (
+    mimeType === "image/webp" &&
+    new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" &&
+    new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP"
+  );
+}
+
+export async function executeCanvasAction(
+  boardId: string,
+  rawAction: CanvasAction,
+  expectedTarget?: CanvasActionTarget,
+): Promise<CanvasActionResult> {
+  const action = canvasActionSchema.parse(rawAction);
+  const editor = requireMountedEditor(boardId);
+  requireTarget(boardId, expectedTarget);
+  let affectedShapeIds: string[] = [];
+  let message = "Canvas updated";
+
+  if (action.type === "undo") {
+    for (let index = 0; index < action.steps; index += 1) editor.undo();
+    message = `Undid ${action.steps} canvas operation${action.steps === 1 ? "" : "s"}`;
+  } else if (action.type === "viewport") {
+    if (action.mode === "fit")
+      editor.zoomToFit({ animation: { duration: 180 } });
+    if (action.mode === "selection")
+      editor.zoomToSelection({ animation: { duration: 180 } });
+    if (action.mode === "camera") {
+      editor.setCamera(
+        {
+          x: action.x as number,
+          y: action.y as number,
+          z: action.zoom as number,
+        },
+        { animation: { duration: 180 } },
+      );
+    }
+    if (action.mode === "shapes") {
+      const ids = requireCurrentPageShapeIds(editor, action.shapeIds ?? []);
+      const shapeBounds = ids
+        .map((id) => editor.getShapePageBounds(id))
+        .filter((bounds): bounds is Box => bounds !== null);
+      if (shapeBounds.length !== ids.length)
+        throw new Error("Could not determine bounds for the requested shapes");
+      const bounds = Box.Common(shapeBounds);
+      editor.zoomToBounds(bounds, { animation: { duration: 180 }, inset: 64 });
+      affectedShapeIds = ids.map(String);
+    }
+    message = `Canvas viewport changed to ${action.mode}`;
+  } else {
+    if (action.type === "create-arrow") {
+      const [startId, endId] = requireCurrentPageShapeIds(editor, [
+        action.startShapeId,
+        action.endShapeId,
+      ]);
+      if (startId === endId)
+        throw new Error("An arrow must connect two different shapes");
+      const startBounds = editor.getShapePageBounds(startId);
+      const endBounds = editor.getShapePageBounds(endId);
+      if (!startBounds || !endBounds)
+        throw new Error("Could not determine connector endpoints");
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      const id = createShapeId();
+      editor.createShape({
+        id,
+        type: "arrow",
+        x: startBounds.center.x,
+        y: startBounds.center.y,
+        props: {
+          color: action.color ?? "black",
+          richText: toRichText(action.text ?? ""),
+          start: { x: 0, y: 0 },
+          end: {
+            x: endBounds.center.x - startBounds.center.x,
+            y: endBounds.center.y - startBounds.center.y,
+          },
+        },
+      });
+      editor.createBindings([
+        {
+          type: "arrow",
+          fromId: id,
+          toId: startId,
+          props: {
+            terminal: "start",
+            normalizedAnchor: { x: 0.5, y: 0.5 },
+            isExact: false,
+            isPrecise: false,
+            snap: "none",
+          },
+        },
+        {
+          type: "arrow",
+          fromId: id,
+          toId: endId,
+          props: {
+            terminal: "end",
+            normalizedAnchor: { x: 0.5, y: 0.5 },
+            isExact: false,
+            isPrecise: false,
+            snap: "none",
+          },
+        },
+      ]);
+      affectedShapeIds = [String(id), String(startId), String(endId)];
+      editor.select(id);
+      message = `Connected ${startId} to ${endId}`;
+    } else if (action.type === "place-image") {
+      const expectedPrefix = `data:${action.mimeType};base64,`;
+      if (!action.src.startsWith(expectedPrefix)) {
+        throw new Error(
+          "Canvas images must use a matching PNG, JPEG, or WebP data URL so they remain available offline",
+        );
+      }
+      const encoded = action.src.slice(expectedPrefix.length);
+      let bytes: Uint8Array;
+      try {
+        bytes = Uint8Array.from(atob(encoded), (character) =>
+          character.charCodeAt(0),
+        );
+      } catch {
+        throw new Error("Canvas image data is not valid base64");
+      }
+      if (bytes.length === 0 || bytes.length > 10 * 1024 * 1024) {
+        throw new Error("Canvas images must contain 1 byte to 10 MiB of data");
+      }
+      if (!hasExpectedImageSignature(action.mimeType, bytes)) {
+        throw new Error("Canvas image data does not match its MIME type");
+      }
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      const assetId = AssetRecordType.createId();
+      const id = createShapeId();
+      const asset = AssetRecordType.create({
+        id: assetId,
+        type: "image",
+        props: {
+          name: action.name,
+          src: null,
+          mimeType: action.mimeType,
+          w: action.width,
+          h: action.height,
+          fileSize: bytes.length,
+          isAnimated: false,
+        },
+        meta: {},
+      }) as TLImageAsset;
+      const upload = await editor.uploadAsset(
+        asset,
+        new File([Uint8Array.from(bytes).buffer], action.name, {
+          type: action.mimeType,
+        }),
+      );
+      editor.createAssets([
+        {
+          ...asset,
+          props: {
+            ...asset.props,
+            src: upload.src,
+          },
+          meta: upload.meta ? { ...asset.meta, ...upload.meta } : asset.meta,
+        },
+      ]);
+      editor.createShape({
+        id,
+        type: "image",
+        x: action.x,
+        y: action.y,
+        props: {
+          assetId,
+          w: action.width,
+          h: action.height,
+          altText: action.altText ?? "",
+        },
+      });
+      affectedShapeIds = [String(id)];
+      editor.select(id);
+      message = `Placed image ${action.name}`;
+    } else {
+      const ids = requireCurrentPageShapeIds(editor, action.shapeIds);
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      affectedShapeIds = ids.map(String);
+      if (action.type === "delete") {
+        editor.deleteShapes(ids);
+        message = `Deleted ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "group") {
+        const groupId = createShapeId();
+        editor.groupShapes(ids, { groupId, select: true });
+        affectedShapeIds = [String(groupId), ...affectedShapeIds];
+        message = `Grouped ${ids.length} shapes`;
+      } else if (action.type === "ungroup") {
+        const invalid = ids.filter(
+          (id) => editor.getShape(id)?.type !== "group",
+        );
+        if (invalid.length)
+          throw new Error(
+            `Only group shapes can be ungrouped: ${invalid.join(", ")}`,
+          );
+        editor.ungroupShapes(ids, { select: true });
+        message = `Ungrouped ${ids.length} group${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "move") {
+        editor.updateShapes(
+          ids.map((id) => {
+            const shape = editor.getShape(id);
+            if (!shape) throw new Error(`Shape ${id} does not exist`);
+            return {
+              id,
+              type: shape.type,
+              x: shape.x + action.deltaX,
+              y: shape.y + action.deltaY,
+            };
+          }),
+        );
+        editor.select(...ids);
+        message = `Moved ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "resize") {
+        for (const id of ids)
+          editor.resizeShape(id, { x: action.scaleX, y: action.scaleY });
+        editor.select(...ids);
+        message = `Resized ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "align") {
+        editor.alignShapes(ids, action.alignment);
+        editor.select(...ids);
+        message = `Aligned ${ids.length} shapes ${action.alignment}`;
+      } else if (action.type === "distribute") {
+        editor.distributeShapes(ids, action.axis);
+        editor.select(...ids);
+        message = `Distributed ${ids.length} shapes ${action.axis}`;
+      } else if (action.type === "reorder") {
+        if (action.position === "front") editor.bringToFront(ids);
+        if (action.position === "back") editor.sendToBack(ids);
+        if (action.position === "forward") editor.bringForward(ids);
+        if (action.position === "backward") editor.sendBackward(ids);
+        editor.select(...ids);
+        message = `Moved ${ids.length} shape${ids.length === 1 ? "" : "s"} ${action.position}`;
+      }
+    }
+  }
+
+  const result = { boardId, action: action.type, affectedShapeIds, message };
+  announceCanvasAction(result);
+  return result;
+}
+
 export function getCanvasContext(boardId?: string): CanvasContext | null {
   const editor = getMountedEditor(boardId);
   if (!editor) return null;
@@ -191,9 +495,11 @@ export function getCanvasContext(boardId?: string): CanvasContext | null {
 export function createCanvasShape(
   boardId: string,
   rawInput: CanvasCreateShapeInput,
+  expectedTarget?: CanvasActionTarget,
 ): string {
   const input = createShapeSchema.parse(rawInput);
   const editor = requireMountedEditor(boardId);
+  requireTarget(boardId, expectedTarget);
   const id = createShapeId();
   const color = input.color ?? "black";
 
@@ -239,15 +545,24 @@ export function createCanvasShape(
   editor.select(id);
   editor.zoomToSelection();
 
+  announceCanvasAction({
+    boardId,
+    action: "create-shape",
+    affectedShapeIds: [String(id)],
+    message: `Created ${input.kind}`,
+  });
+
   return id;
 }
 
 export function updateCanvasShape(
   boardId: string,
   rawInput: CanvasUpdateShapeInput,
+  expectedTarget?: CanvasActionTarget,
 ): void {
   const input = updateShapeSchema.parse(rawInput);
   const editor = requireMountedEditor(boardId);
+  requireTarget(boardId, expectedTarget);
   const shape = editor.getShape(input.shapeId as TLShapeId);
   if (!shape) throw new Error(`Shape ${input.shapeId} does not exist`);
   if (!editor.getCurrentPageShapeIds().has(shape.id)) {
@@ -287,4 +602,10 @@ export function updateCanvasShape(
   });
   editor.select(shape.id);
   editor.zoomToSelection();
+  announceCanvasAction({
+    boardId,
+    action: "update-shape",
+    affectedShapeIds: [String(shape.id)],
+    message: `Updated ${shape.id}`,
+  });
 }

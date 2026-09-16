@@ -79,6 +79,8 @@ const mocks = vi.hoisted(() => ({
   getMountedEditor: vi.fn(),
   createCanvasShape: vi.fn(),
   updateCanvasShape: vi.fn(),
+  executeCanvasAction: vi.fn(),
+  loadCanvasBoardCatalog: vi.fn(),
 }));
 
 vi.mock("@/features/canvas/runtime", () => ({
@@ -87,6 +89,13 @@ vi.mock("@/features/canvas/runtime", () => ({
   getMountedEditor: (...args: unknown[]) => mocks.getMountedEditor(...args),
   createCanvasShape: (...args: unknown[]) => mocks.createCanvasShape(...args),
   updateCanvasShape: (...args: unknown[]) => mocks.updateCanvasShape(...args),
+  executeCanvasAction: (...args: unknown[]) =>
+    mocks.executeCanvasAction(...args),
+}));
+
+vi.mock("@/features/canvas/boardCatalog", () => ({
+  loadCanvasBoardCatalog: (...args: unknown[]) =>
+    mocks.loadCanvasBoardCatalog(...args),
 }));
 
 vi.mock("@/shared/api/acp", () => ({
@@ -455,6 +464,13 @@ beforeEach(() => {
   mocks.listProjects.mockResolvedValue([]);
   mocks.listPersonas.mockResolvedValue([]);
   mocks.listSkills.mockResolvedValue([]);
+  mocks.loadCanvasBoardCatalog.mockResolvedValue({
+    version: 1,
+    scope: "chat",
+    sessionId: "session-1",
+    projectId: null,
+    boards: [],
+  });
   mocks.getVoiceConversationStatus.mockResolvedValue({
     available: false,
     unavailableReason: null,
@@ -665,6 +681,65 @@ describe("action schemas", () => {
       "canvas.context": { session_id: "s1" },
       "canvas.add": { session_id: "s1", kind: "rectangle", x: 0, y: 0 },
       "canvas.update": { session_id: "s1", shape_id: "shape:1" },
+      "canvas.arrow": {
+        session_id: "s1",
+        start_shape_id: "shape:1",
+        end_shape_id: "shape:2",
+      },
+      "canvas.connect": {
+        session_id: "s1",
+        from_shape_id: "shape:1",
+        to_shape_id: "shape:2",
+      },
+      "canvas.image": {
+        session_id: "s1",
+        src: "data:image/png;base64,iVBORw0KGgo=",
+        mime_type: "image/png",
+        name: "image.png",
+        x: 0,
+        y: 0,
+        width: 320,
+        height: 200,
+      },
+      "canvas.delete": {
+        session_id: "s1",
+        shape_ids: ["shape:1"],
+        confirm: true,
+      },
+      "canvas.group": {
+        session_id: "s1",
+        shape_ids: ["shape:1", "shape:2"],
+      },
+      "canvas.ungroup": { session_id: "s1", group_ids: ["group:1"] },
+      "canvas.move": {
+        session_id: "s1",
+        shape_ids: ["shape:1"],
+        delta_x: 10,
+        delta_y: 10,
+      },
+      "canvas.resize": {
+        session_id: "s1",
+        shape_ids: ["shape:1"],
+        scale_x_percent: 110,
+        scale_y_percent: 110,
+      },
+      "canvas.align": {
+        session_id: "s1",
+        shape_ids: ["shape:1", "shape:2"],
+        alignment: "left",
+      },
+      "canvas.distribute": {
+        session_id: "s1",
+        shape_ids: ["shape:1", "shape:2", "shape:3"],
+        axis: "horizontal",
+      },
+      "canvas.reorder": {
+        session_id: "s1",
+        shape_ids: ["shape:1"],
+        position: "front",
+      },
+      "canvas.viewport": { session_id: "s1", mode: "fit" },
+      "canvas.undo": { session_id: "s1" },
     };
 
     for (const [groupName, group] of Object.entries(TOOL_GROUPS)) {
@@ -5392,6 +5467,95 @@ describe("canvas schemas", () => {
 });
 
 describe("canvas dispatch", () => {
+  it("targets an explicit catalog-owned board", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: null }));
+    mockSessionFound();
+    mocks.loadCanvasBoardCatalog.mockResolvedValue({
+      version: 1,
+      scope: "chat",
+      sessionId: "session-1",
+      projectId: null,
+      boards: [
+        {
+          boardId: "board:ideas",
+          name: "Ideas",
+          createdAt: "2026-09-16T00:00:00.000Z",
+          updatedAt: "2026-09-16T00:00:00.000Z",
+        },
+      ],
+    });
+    mocks.getCanvasContext.mockReturnValue({
+      boardId: "board:ideas",
+      sessionId: "session-1",
+    });
+
+    await expect(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "context",
+          session_id: "session-1",
+          board_id: "board:ideas",
+        },
+        ctx,
+      ),
+    ).resolves.toEqual(expect.objectContaining({ boardId: "board:ideas" }));
+    expect(mocks.getCanvasContext).toHaveBeenCalledWith("board:ideas");
+  });
+
+  it("rejects a board outside the resolved catalog", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: null }));
+    mockSessionFound();
+    mocks.loadCanvasBoardCatalog.mockResolvedValue({
+      version: 1,
+      scope: "chat",
+      sessionId: "session-1",
+      projectId: null,
+      boards: [],
+    });
+
+    await expectCommandError(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "context",
+          session_id: "session-1",
+          board_id: "board:elsewhere",
+        },
+        ctx,
+      ),
+      "invalid_args",
+    );
+    expect(mocks.getCanvasContext).not.toHaveBeenCalled();
+  });
+
+  it("maps CLI fields to strict runtime actions without target-field leakage", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: null }));
+    mockSessionFound();
+    mocks.executeCanvasAction.mockResolvedValue({
+      boardId: "chat:session-1",
+      action: "ungroup",
+      affectedShapeIds: ["shape:group"],
+      message: "Ungrouped 1 group",
+    });
+
+    await dispatchCommand(
+      "canvas",
+      {
+        action: "ungroup",
+        session_id: "session-1",
+        group_ids: ["shape:group"],
+      },
+      ctx,
+    );
+
+    expect(mocks.executeCanvasAction).toHaveBeenCalledWith(
+      "chat:session-1",
+      { type: "ungroup", shapeIds: ["shape:group"] },
+      { sessionId: "session-1", projectId: null },
+    );
+  });
+
   it("waits for the requested session even when its project board is mounted elsewhere", async () => {
     seedSessions(makeSession({ id: "session-1", projectId: "project-1" }));
     mockSessionFound({ projectId: "project-1" });
@@ -5417,6 +5581,7 @@ describe("canvas dispatch", () => {
       sessionId: "session-1",
       projectId: "project-1",
       scope: "project",
+      boardId: "project:project-1",
     });
   });
 
@@ -5458,12 +5623,16 @@ describe("canvas dispatch", () => {
       shape_id: "shape:created",
       board_id: "chat:session-1",
     });
-    expect(mocks.createCanvasShape).toHaveBeenCalledWith("chat:session-1", {
-      kind: "text",
-      x: 10,
-      y: 20,
-      text: "Hello",
-    });
+    expect(mocks.createCanvasShape).toHaveBeenCalledWith(
+      "chat:session-1",
+      {
+        kind: "text",
+        x: 10,
+        y: 20,
+        text: "Hello",
+      },
+      { sessionId: "session-1", projectId: null },
+    );
   });
 
   it("rejects a project canvas when session membership does not match", async () => {

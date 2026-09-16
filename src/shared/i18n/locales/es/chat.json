@@ -4,6 +4,7 @@
     "description": "Este chat ya no está disponible en el servidor remoto. Los mensajes que siguen disponibles se muestran arriba, pero pueden desaparecer al reiniciar Berd. Guarda la información importante antes de cerrar la aplicación. Inicia un chat nuevo para continuar."
   },
   "attachments": {
+    "canvasBoard": "Lienzo: {{boardId}}",
     "alt": "Adjunto {{index}}",
     "chooseFilesDialogTitle": "Elegir archivos para adjuntar",
     "chooseFoldersDialogTitle": "Elegir carpetas para adjuntar",
