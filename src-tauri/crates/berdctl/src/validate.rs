@@ -134,9 +134,9 @@ fn validate_field(group: &str, action: &str, field: &Field, errors: &mut Vec<Str
     let max = field.max.as_ref().map(serde_json::Number::as_i64);
     let non_integer = matches!(min, Some(None)) || matches!(max, Some(None));
     let negative = matches!(min, Some(Some(n)) if n < 0) || matches!(max, Some(Some(n)) if n < 0);
-    if non_integer || negative {
+    if non_integer || (negative && field.kind != "number") {
         errors.push(format!(
-            "`{group}.{action}.{name}` declares bounds a clap u32 range cannot \
+            "`{group}.{action}.{name}` declares bounds the generated CLI cannot \
              carry (non-integer or negative); adjust the zod bounds"
         ));
     }

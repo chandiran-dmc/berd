@@ -87,6 +87,7 @@ import {
   SecurityConfirmationPanel,
   useRegisterSecurityConfirmationSurface,
 } from "@/features/security/ui/SecurityConfirmationPanel";
+import { CanvasSurface } from "@/features/canvas/CanvasSurface";
 
 const CHAT_RESPONDING_PILL_CLASS =
   "rounded-full bg-surface-chat-responding-pill-bg text-surface-chat-responding-pill-fg shadow-[var(--shadow-chat)] [--shimmer-ink:var(--color-surface-chat-responding-pill-fg)]";
@@ -157,6 +158,7 @@ export function ChatView({
   const conversationDropTargetRef = useRef<HTMLDivElement | null>(null);
   const [conversationAttachmentDragOver, setConversationAttachmentDragOver] =
     useState(false);
+  const [canvasVisible, setCanvasVisible] = useState(false);
   const transcriptSearchRootRef = useRef<HTMLDivElement | null>(null);
   const transcriptSearchBackendRef = useRef<TranscriptSearchBackend | null>(
     null,
@@ -893,9 +895,14 @@ export function ChatView({
           !composerHandoffActive && "page-transition",
           // Agent-builder sessions lay out as a two-column grid so the chat can
           // slide in/out and the builder can be resized via the grid template.
-          isAgentBuilderSession ? "grid" : "flex",
+          isAgentBuilderSession ? "grid" : "relative flex",
           !isAgentBuilderSession &&
-            (effectiveHasVisibleRightRail || isArtifactViewerOpen) &&
+            canvasVisible &&
+            "flex-col min-[1100px]:flex-row",
+          !isAgentBuilderSession &&
+            (effectiveHasVisibleRightRail ||
+              isArtifactViewerOpen ||
+              canvasVisible) &&
             "gap-[var(--spacing-app-panel-gutter-inline)]",
         )}
         style={
@@ -920,6 +927,8 @@ export function ChatView({
           data-chat-column
           className={cn(
             "relative flex min-w-0 flex-col",
+            canvasVisible &&
+              "h-[40%] min-h-[220px] min-w-[340px] flex-none min-[1100px]:h-auto min-[1100px]:w-[360px]",
             !isAgentBuilderSession && "flex-1",
             isAgentBuilderSession && "agent-builder-column-enter",
             // While editing an agent the chat lives in a grid track that can
@@ -1021,6 +1030,15 @@ export function ChatView({
             </div>
           ) : null}
         </div>
+
+        {!isAgentBuilderSession ? (
+          <CanvasSurface
+            key={timelineSessionId}
+            sessionId={timelineSessionId}
+            projectId={effectiveSession?.projectId}
+            onVisibilityChange={setCanvasVisible}
+          />
+        ) : null}
 
         {sessionId && !isAgentBuilderSession ? (
           // Keyed by the same effective identity the providers use, so the

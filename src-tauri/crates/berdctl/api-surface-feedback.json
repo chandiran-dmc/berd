@@ -1477,6 +1477,449 @@
           }
         }
       }
+    },
+    "canvas": {
+      "description": "Open and inspect bounded, user-visible creative canvases.",
+      "actions": {
+        "open": {
+          "description": "Open the selected chat or project canvas in the app window.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to open.",
+              "values": ["chat", "project"]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to open.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
+        },
+        "context": {
+          "description": "Read the selected canvas identity, visible shapes, and selection.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to inspect.",
+              "values": ["chat", "project"]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to inspect.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
+        },
+        "add": {
+          "description": "Create exactly one bounded shape on an already visible session or project canvas.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "kind": "string",
+              "description": "Bounded shape kind to create.",
+              "values": ["rectangle", "ellipse", "note", "text"]
+            },
+            {
+              "name": "x",
+              "required": true,
+              "kind": "number",
+              "description": "Page x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "y",
+              "required": true,
+              "kind": "number",
+              "description": "Page y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "width",
+              "required": false,
+              "kind": "number",
+              "description": "Shape width for geometric shapes.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "height",
+              "required": false,
+              "kind": "number",
+              "description": "Shape height for geometric shapes.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "text",
+              "required": false,
+              "kind": "string",
+              "description": "Visible text inside the shape.",
+              "max": 20000
+            },
+            {
+              "name": "color",
+              "required": false,
+              "kind": "string",
+              "description": "tldraw shape color.",
+              "values": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red"
+              ]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["rectangle", "ellipse", "note", "text"],
+                "description": "Bounded shape kind to create."
+              },
+              "x": {
+                "type": "integer",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Page x position."
+              },
+              "y": {
+                "type": "integer",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Page y position."
+              },
+              "width": {
+                "description": "Shape width for geometric shapes.",
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 20000
+              },
+              "height": {
+                "description": "Shape height for geometric shapes.",
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 20000
+              },
+              "text": {
+                "description": "Visible text inside the shape.",
+                "type": "string",
+                "maxLength": 20000
+              },
+              "color": {
+                "description": "tldraw shape color.",
+                "type": "string",
+                "enum": [
+                  "black",
+                  "grey",
+                  "light-violet",
+                  "violet",
+                  "blue",
+                  "light-blue",
+                  "yellow",
+                  "orange",
+                  "green",
+                  "light-green",
+                  "light-red",
+                  "red"
+                ]
+              }
+            },
+            "required": ["session_id", "kind", "x", "y"],
+            "additionalProperties": false
+          }
+        },
+        "update": {
+          "description": "Update bounded properties of one existing shape on an open canvas.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "shape_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the visible shape to update.",
+              "min": 1,
+              "max": 300
+            },
+            {
+              "name": "x",
+              "required": false,
+              "kind": "number",
+              "description": "New page x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "y",
+              "required": false,
+              "kind": "number",
+              "description": "New page y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "width",
+              "required": false,
+              "kind": "number",
+              "description": "New shape width.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "height",
+              "required": false,
+              "kind": "number",
+              "description": "New shape height.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "text",
+              "required": false,
+              "kind": "string",
+              "description": "New visible text.",
+              "max": 20000
+            },
+            {
+              "name": "color",
+              "required": false,
+              "kind": "string",
+              "description": "New tldraw shape color.",
+              "values": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red"
+              ]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "shape_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300,
+                "description": "Id of the visible shape to update."
+              },
+              "x": {
+                "description": "New page x position.",
+                "type": "integer",
+                "minimum": -100000,
+                "maximum": 100000
+              },
+              "y": {
+                "description": "New page y position.",
+                "type": "integer",
+                "minimum": -100000,
+                "maximum": 100000
+              },
+              "width": {
+                "description": "New shape width.",
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 20000
+              },
+              "height": {
+                "description": "New shape height.",
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 20000
+              },
+              "text": {
+                "description": "New visible text.",
+                "type": "string",
+                "maxLength": 20000
+              },
+              "color": {
+                "description": "New tldraw shape color.",
+                "type": "string",
+                "enum": [
+                  "black",
+                  "grey",
+                  "light-violet",
+                  "violet",
+                  "blue",
+                  "light-blue",
+                  "yellow",
+                  "orange",
+                  "green",
+                  "light-green",
+                  "light-red",
+                  "red"
+                ]
+              }
+            },
+            "required": ["session_id", "shape_id"],
+            "additionalProperties": false
+          }
+        }
+      }
     }
   }
 }

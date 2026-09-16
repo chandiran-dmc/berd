@@ -222,6 +222,32 @@
           "afterHelp": "Example:\n  berdctl info context --json\n\nResult:\n  {\"view\": \"...\", \"active_session_id\": \"...\"|null,\n   \"active_project_id\": \"...\"|null, \"voice_session_active\": true|false,\n   \"app_version\": \"...\"}"
         }
       }
+    },
+    "canvas": {
+      "group": "canvas",
+      "about": "Open, inspect, and edit a visible creative canvas",
+      "verbs": {
+        "open": {
+          "action": "open",
+          "about": "Open a session canvas and make it visible",
+          "afterHelp": "Example:\n  berdctl canvas open --session-id <session-id> --scope chat\n\nResult:\n  {\"board_id\": \"...\", \"scope\": \"chat\"} — the canvas is visible."
+        },
+        "context": {
+          "action": "context",
+          "about": "Read the visible canvas context",
+          "afterHelp": "Example:\n  berdctl canvas context --session-id <session-id> --scope chat\n\nResult:\n  {\"board_id\": \"...\", \"shape_count\": 0, \"selection\": []}"
+        },
+        "add": {
+          "action": "add",
+          "about": "Create one visible canvas shape",
+          "afterHelp": "Example:\n  berdctl canvas add --session-id <session-id> --kind rectangle --x 100 --y 100\n\nResult:\n  {\"shape_id\": \"...\"} — one shape is visible on the open canvas."
+        },
+        "update": {
+          "action": "update",
+          "about": "Update one visible canvas shape",
+          "afterHelp": "Example:\n  berdctl canvas update --session-id <session-id> --shape-id <shape-id> --text \"Approved\"\n\nResult:\n  {\"ok\": true} — the visible shape is updated."
+        }
+      }
     }
   }
 }

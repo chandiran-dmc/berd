@@ -86,9 +86,27 @@ fn built_body(
             "string_array" => matches
                 .get_many::<String>(&field.name)
                 .map(|values| Value::Array(values.cloned().map(Value::String).collect())),
-            "number" => matches
-                .get_one::<u32>(&field.name)
-                .map(|value| Value::from(*value)),
+            "number" => {
+                let signed = field
+                    .min
+                    .as_ref()
+                    .and_then(|n| n.as_i64())
+                    .is_some_and(|n| n < 0)
+                    || field
+                        .max
+                        .as_ref()
+                        .and_then(|n| n.as_i64())
+                        .is_some_and(|n| n < 0);
+                if signed {
+                    matches
+                        .get_one::<i64>(&field.name)
+                        .map(|value| Value::from(*value))
+                } else {
+                    matches
+                        .get_one::<u32>(&field.name)
+                        .map(|value| Value::from(*value))
+                }
+            }
             "boolean" => matches
                 .get_one::<bool>(&field.name)
                 .copied()

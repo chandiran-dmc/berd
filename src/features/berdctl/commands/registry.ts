@@ -35,6 +35,10 @@ import { notifySessionCommand } from "./impl/notifySession";
 import { sendSessionCommand } from "./impl/sendSession";
 import { sendToSpokespersonSessionCommand } from "./impl/sendToSpokespersonSession";
 import { setProjectStartupModeCommand } from "./impl/setProjectStartupMode";
+import { openCanvasCommand } from "./impl/openCanvas";
+import { getCanvasContextCommand } from "./impl/getCanvasContext";
+import { createCanvasShapeCommand } from "./impl/createCanvasShape";
+import { updateCanvasShapeCommand } from "./impl/updateCanvasShape";
 import { submitFeedbackCommand } from "./impl/submitFeedback";
 import { commandBridgeTimeoutMs } from "./timeouts";
 import { CommandError, type CommandContext, type ToolGroup } from "./types";
@@ -196,6 +200,20 @@ export const ALL_TOOL_GROUPS = {
       list_harnesses: listHarnessesCommand,
       list_models: listModelsCommand,
       get_context: getContextCommand,
+    },
+  },
+  canvas: {
+    description: "Open and inspect bounded, user-visible creative canvases.",
+    cli: {
+      noun: "canvas",
+      about: "Open, inspect, and edit a visible creative canvas",
+      verbs: { open: "open", context: "context", add: "add", update: "update" },
+    },
+    actions: {
+      open: openCanvasCommand,
+      context: getCanvasContextCommand,
+      add: createCanvasShapeCommand,
+      update: updateCanvasShapeCommand,
     },
   },
 } as const satisfies Record<string, ToolGroup>;

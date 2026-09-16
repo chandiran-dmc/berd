@@ -30,6 +30,7 @@ sees there:
   agent     agents (personas)    create, list
   skill     skills (SKILL.md)    create, list, get
   info      read-only lookups    harnesses, models, context
+  canvas    creative canvas      open, context, add, update
 
 Results are JSON on stdout (pretty-printed; pass --json for raw single-line
 JSON). Errors are `code: message` lines on stderr; transport errors tell you
@@ -163,21 +164,46 @@ fn built_arg(field: &Field) -> Arg {
     } else if field.kind == "number" {
         // Bounds come from the zod schema via api-surface.json; clap only
         // mirrors them for fast local errors.
-        let mut parser = clap::value_parser!(u32);
-        if field.min.is_some() || field.max.is_some() {
-            let min = bound(&field.min).unwrap_or(0);
-            parser = match bound(&field.max) {
-                Some(max) => parser.range(min..=max),
-                None => parser.range(min..),
-            };
+        if signed_number(field) {
+            let mut parser = clap::value_parser!(i64);
+            if field.min.is_some() || field.max.is_some() {
+                let min = bound(&field.min).unwrap_or(i64::MIN);
+                parser = match bound(&field.max) {
+                    Some(max) => parser.range(min..=max),
+                    None => parser.range(min..),
+                };
+            }
+            arg = arg.allow_hyphen_values(true).value_parser(parser);
+        } else {
+            let mut parser = clap::value_parser!(u32);
+            if field.min.is_some() || field.max.is_some() {
+                let min = bound(&field.min).unwrap_or(0);
+                parser = match bound(&field.max) {
+                    Some(max) => parser.range(min..=max),
+                    None => parser.range(min..),
+                };
+            }
+            arg = arg.value_parser(parser);
         }
-        arg = arg.value_parser(parser);
     } else if let Some(values) = &field.values {
         arg = arg.value_parser(PossibleValuesParser::new(
             values.iter().cloned().map(PossibleValue::new),
         ));
     }
     arg
+}
+
+fn signed_number(field: &Field) -> bool {
+    field
+        .min
+        .as_ref()
+        .and_then(|n| n.as_i64())
+        .is_some_and(|n| n < 0)
+        || field
+            .max
+            .as_ref()
+            .and_then(|n| n.as_i64())
+            .is_some_and(|n| n < 0)
 }
 
 fn bound(value: &Option<serde_json::Number>) -> Option<i64> {

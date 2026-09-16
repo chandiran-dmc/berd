@@ -154,6 +154,7 @@ export function buildInitScript(options?: {
         updatedAt: session.updatedAt ?? new Date().toISOString(),
         messageCount: session.messageCount ?? 0,
         conversationBefore: session.conversationBefore,
+        projectId: session.projectId ?? null,
         providerId: session.providerId ?? "goose",
         modelId: session.modelId ?? null,
       }));
@@ -384,9 +385,18 @@ export function buildInitScript(options?: {
                 updatedAt: session.updatedAt,
                 _meta: {
                   messageCount: session.messageCount,
+                  projectId: session.projectId,
                 },
               })),
             });
+          case "_goose/unstable/session/info": {
+            const session = findSession(message.params?.sessionId);
+            if (!session) return { jsonrpc: "2.0", id: message.id, error: { code: -32002, message: "Session not found" } };
+            return jsonRpcResult(message.id, { session: {
+              sessionId: session.sessionId, title: session.title, updatedAt: session.updatedAt, cwd: "/tmp",
+              _meta: { messageCount: session.messageCount, projectId: session.projectId, providerId: session.providerId, modelId: session.modelId },
+            } });
+          }
           case "session/new": {
             const providerId = message.params?.meta?.provider ?? "goose";
             const sessionId = "session-" + Math.random().toString(36).slice(2, 10);
@@ -537,9 +547,11 @@ export function buildInitScript(options?: {
           case "_goose/unstable/sources/list":
             return jsonRpcResult(message.id, {
               sources:
-                message.params?.type === "agent"
-                  ? clone(AGENT_SOURCES)
-                  : clone(SKILL_SOURCES),
+                message.params?.type === "project"
+                  ? PROJECTS.map((project) => ({ type: "project", name: project.id, description: project.description ?? "", content: project.prompt ?? "", path: "/mock/projects/" + project.id, global: true, properties: { ...project, title: project.name } }))
+                  : message.params?.type === "agent"
+                    ? clone(AGENT_SOURCES)
+                    : clone(SKILL_SOURCES),
             });
           case "_goose/sources/create":
           case "_goose/unstable/sources/create": {

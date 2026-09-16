@@ -1,3 +1,5 @@
+> **Creative Harness fork:** Adds optional, persistent tldraw boards to chats and projects, with visible agent edits through berdctl. [Setup, scope, and licensing](docs/creative-harness.md). Downstream changes started September 16, 2026; upstream attribution and licenses are retained.
+
 # Berd
 
 Berd is an open-source desktop app for working with AI agents. It is built with

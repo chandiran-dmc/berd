@@ -1,0 +1,23 @@
+{
+  "productName": "Creative Harness",
+  "identifier": "dev.chandiran.creative-harness",
+  "app": {
+    "windows": [
+      {
+        "title": "Creative Harness",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 608,
+        "minHeight": 600,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "dragDropEnabled": true,
+        "trafficLightPosition": { "x": 14, "y": 28 }
+      }
+    ]
+  },
+  "plugins": {
+    "deep-link": { "desktop": { "schemes": ["creative-harness"] } }
+  }
+}

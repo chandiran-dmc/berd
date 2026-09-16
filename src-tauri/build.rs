@@ -1,3 +1,24 @@
+#[cfg(target_os = "macos")]
+fn add_swift_product_search_path(package: &str) {
+    let configuration = if std::env::var("DEBUG").as_deref() == Ok("true") {
+        "Debug"
+    } else {
+        "Release"
+    };
+    let product_directory =
+        std::path::PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR is set"))
+            .join("swift-rs")
+            .join(package)
+            .join("out/Products")
+            .join(configuration);
+    if product_directory.join(format!("lib{package}.a")).is_file() {
+        println!(
+            "cargo:rustc-link-search=native={}",
+            product_directory.display()
+        );
+    }
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=migrations");
     println!("cargo:rerun-if-env-changed=BERD_APP_VERSION");
@@ -13,6 +34,12 @@ fn main() {
             swift_rs::SwiftLinker::new("14.0")
                 .with_package("BerdAirPodsBridge", "swift/BerdAirPodsBridge")
                 .link();
+            // Swift 6.4 may place static products under
+            // `out/Products/{Debug,Release}` instead of swift-rs's historical
+            // target-triple directory. Add the directory containing the
+            // archive that was actually produced; the original swift-rs path
+            // remains in the search list for older toolchains.
+            add_swift_product_search_path("BerdAirPodsBridge");
 
             // Swift packages linked into a Rust executable use @rpath for the
             // system Swift runtime, which is available from this stable path.

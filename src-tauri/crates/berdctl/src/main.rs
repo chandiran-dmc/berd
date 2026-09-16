@@ -328,6 +328,20 @@ mod tests {
             ("info", "harnesses") => vec![],
             ("info", "models") => vec![],
             ("info", "context") => vec![],
+            ("canvas", "open") | ("canvas", "context") => vec!["--session-id", "s"],
+            ("canvas", "add") => vec![
+                "--session-id",
+                "s",
+                "--kind",
+                "rectangle",
+                "--x",
+                "-10",
+                "--y",
+                "20",
+            ],
+            ("canvas", "update") => {
+                vec!["--session-id", "s", "--shape-id", "shape:1", "--x", "-10"]
+            }
             _ => return None,
         })
     }
@@ -583,6 +597,44 @@ mod tests {
     }
 
     #[test]
+    fn canvas_coordinates_are_signed_bounded_integers() {
+        let (_, args) = wire_of(&[
+            "berdctl",
+            "canvas",
+            "add",
+            "--session-id",
+            "s",
+            "--kind",
+            "note",
+            "--x",
+            "-100000",
+            "--y",
+            "100000",
+        ]);
+        assert_eq!(args["x"], -100000);
+        assert_eq!(args["y"], 100000);
+        for invalid in ["-100001", "100001", "-1.5", "NaN"] {
+            assert!(
+                try_parse(&[
+                    "berdctl",
+                    "canvas",
+                    "add",
+                    "--session-id",
+                    "s",
+                    "--kind",
+                    "note",
+                    "--x",
+                    invalid,
+                    "--y",
+                    "0",
+                ])
+                .is_err(),
+                "invalid coordinate {invalid} must be rejected"
+            );
+        }
+    }
+
+    #[test]
     fn enum_values_are_enforced_client_side() {
         assert!(
             try_parse(&[
@@ -782,7 +834,9 @@ Result:
             rendered.contains("feedback"),
             cfg!(feature = "block-feedback")
         );
-        for command in ["session", "folder", "project", "agent", "skill", "info"] {
+        for command in [
+            "session", "folder", "project", "agent", "skill", "info", "canvas",
+        ] {
             assert!(
                 rendered
                     .lines()

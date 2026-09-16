@@ -74,6 +74,19 @@ const mocks = vi.hoisted(() => ({
   createSkill: vi.fn(),
   listSkills: vi.fn(),
   getVoiceConversationStatus: vi.fn(),
+  openCanvas: vi.fn(),
+  getCanvasContext: vi.fn(),
+  getMountedEditor: vi.fn(),
+  createCanvasShape: vi.fn(),
+  updateCanvasShape: vi.fn(),
+}));
+
+vi.mock("@/features/canvas/runtime", () => ({
+  openCanvas: (...args: unknown[]) => mocks.openCanvas(...args),
+  getCanvasContext: (...args: unknown[]) => mocks.getCanvasContext(...args),
+  getMountedEditor: (...args: unknown[]) => mocks.getMountedEditor(...args),
+  createCanvasShape: (...args: unknown[]) => mocks.createCanvasShape(...args),
+  updateCanvasShape: (...args: unknown[]) => mocks.updateCanvasShape(...args),
 }));
 
 vi.mock("@/shared/api/acp", () => ({
@@ -648,6 +661,10 @@ describe("action schemas", () => {
       "info.list_harnesses": {},
       "info.list_models": {},
       "info.get_context": {},
+      "canvas.open": { session_id: "s1" },
+      "canvas.context": { session_id: "s1" },
+      "canvas.add": { session_id: "s1", kind: "rectangle", x: 0, y: 0 },
+      "canvas.update": { session_id: "s1", shape_id: "shape:1" },
     };
 
     for (const [groupName, group] of Object.entries(TOOL_GROUPS)) {
@@ -5312,5 +5329,163 @@ describe("feedback schemas", () => {
           .success,
       ).toBe(false);
     }
+  });
+});
+
+describe("canvas schemas", () => {
+  it("accepts bounded add and update fixtures", () => {
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.add.schema.safeParse({
+        session_id: "session-1",
+        kind: "rectangle",
+        x: 100,
+        y: 120,
+        width: 240,
+        height: 144,
+        text: "Draft",
+        color: "blue",
+      }).success,
+    ).toBe(true);
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.update.schema.safeParse({
+        session_id: "session-1",
+        shape_id: "shape:abc",
+        x: 140,
+        text: "Approved",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects unbounded or malformed canvas inputs", () => {
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.add.schema.safeParse({
+        session_id: "session-1",
+        kind: "script",
+        x: 0,
+        y: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.add.schema.safeParse({
+        session_id: "session-1",
+        kind: "text",
+        x: 1.5,
+        y: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.add.schema.safeParse({
+        session_id: "session-1",
+        kind: "text",
+        x: 100001,
+        y: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      ALL_TOOL_GROUPS.canvas.actions.update.schema.safeParse({
+        session_id: "session-1",
+        shape_id: "shape:abc",
+        width: 1,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("canvas dispatch", () => {
+  it("waits for the requested session even when its project board is mounted elsewhere", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: "project-1" }));
+    mockSessionFound({ projectId: "project-1" });
+    mocks.listProjects.mockResolvedValue([makeProject({ id: "project-1" })]);
+    mocks.getCanvasContext.mockReturnValue({ sessionId: "session-2" });
+    mocks.openCanvas.mockImplementation(() => {
+      mocks.getCanvasContext.mockReturnValue({ sessionId: "session-1" });
+    });
+    await expect(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "open",
+          session_id: "session-1",
+          project_id: "project-1",
+          scope: "project",
+        },
+        ctx,
+      ),
+    ).resolves.toEqual({ board_id: "project:project-1", scope: "project" });
+    expect(controller.openSession).toHaveBeenCalledWith("session-1");
+    expect(mocks.openCanvas).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      projectId: "project-1",
+      scope: "project",
+    });
+  });
+
+  it("does not open a canvas when session navigation is refused", async () => {
+    mockSessionFound();
+    controller.openSession.mockResolvedValue({
+      ok: false,
+      reason: "blocked_unsaved_changes",
+    });
+    await expect(
+      dispatchCommand(
+        "canvas",
+        { action: "open", session_id: "session-1" },
+        ctx,
+      ),
+    ).rejects.toThrow("blocked_unsaved_changes");
+    expect(mocks.openCanvas).not.toHaveBeenCalled();
+  });
+
+  it("creates through the runtime with only shape fields", async () => {
+    const session = makeSession({ id: "session-1", projectId: null });
+    seedSessions(session);
+    mockSessionFound();
+    mocks.createCanvasShape.mockReturnValue("shape:created");
+    await expect(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "add",
+          session_id: "session-1",
+          kind: "text",
+          x: 10,
+          y: 20,
+          text: "Hello",
+        },
+        ctx,
+      ),
+    ).resolves.toEqual({
+      shape_id: "shape:created",
+      board_id: "chat:session-1",
+    });
+    expect(mocks.createCanvasShape).toHaveBeenCalledWith("chat:session-1", {
+      kind: "text",
+      x: 10,
+      y: 20,
+      text: "Hello",
+    });
+  });
+
+  it("rejects a project canvas when session membership does not match", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: "project-2" }));
+    mockSessionFound({ projectId: "project-2" });
+    mocks.listProjects.mockResolvedValue([makeProject({ id: "project-1" })]);
+    await expectCommandError(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "add",
+          session_id: "session-1",
+          project_id: "project-1",
+          scope: "project",
+          kind: "rectangle",
+          x: 0,
+          y: 0,
+        },
+        ctx,
+      ),
+      "project_not_found",
+    );
+    expect(mocks.createCanvasShape).not.toHaveBeenCalled();
   });
 });

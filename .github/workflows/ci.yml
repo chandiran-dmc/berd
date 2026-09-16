@@ -44,6 +44,12 @@ jobs:
       - name: Run unit tests
         run: just test
 
+      - name: Install canvas test browser
+        run: pnpm exec playwright install chromium
+
+      - name: Test creative canvas
+        run: pnpm test:canvas
+
       - name: Run release script tests
         run: just release-scripts-test
 
