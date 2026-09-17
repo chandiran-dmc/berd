@@ -20,20 +20,34 @@ export function AgentKitControls({
 }) {
   const [state, setState] = useState<CanvasAgentState>(emptyCanvasAgentState);
   const [lintCount, setLintCount] = useState(0);
+  const [selectionCount, setSelectionCount] = useState(0);
   const [todoTitle, setTodoTitle] = useState("");
 
   useEffect(() => {
     if (!editor) {
       setState(emptyCanvasAgentState());
       setLintCount(0);
+      setSelectionCount(0);
       return;
     }
     const refresh = () => {
       setState(readCanvasAgentState(editor));
       setLintCount(detectCanvasAgentLints(editor).length);
     };
+    const refreshSelection = () =>
+      setSelectionCount(editor.getSelectedShapeIds().length);
     refresh();
-    return editor.store.listen(refresh, { scope: "document" });
+    refreshSelection();
+    const stopDocumentListener = editor.store.listen(refresh, {
+      scope: "document",
+    });
+    const stopSessionListener = editor.store.listen(refreshSelection, {
+      scope: "session",
+    });
+    return () => {
+      stopDocumentListener();
+      stopSessionListener();
+    };
   }, [editor]);
 
   const update = (value: Parameters<typeof updateCanvasAgentState>[1]) => {
@@ -52,6 +66,45 @@ export function AgentKitControls({
       },
     });
     setTodoTitle("");
+  };
+  const addSelectionContext = () => {
+    if (!editor) return;
+    const shapeIds = editor.getSelectedShapeIds().map(String);
+    if (!shapeIds.length) return;
+    update({
+      contextItem: {
+        id: crypto.randomUUID().slice(0, 12),
+        type: "shapes",
+        shapeIds,
+      },
+    });
+  };
+  const addViewportContext = () => {
+    if (!editor) return;
+    const viewport = editor.getViewportPageBounds();
+    update({
+      contextItem: {
+        id: crypto.randomUUID().slice(0, 12),
+        type: "area",
+        bounds: {
+          x: viewport.x,
+          y: viewport.y,
+          width: viewport.w,
+          height: viewport.h,
+        },
+      },
+    });
+  };
+  const addCenterPointContext = () => {
+    if (!editor) return;
+    const center = editor.getViewportPageBounds().center;
+    update({
+      contextItem: {
+        id: crypto.randomUUID().slice(0, 12),
+        type: "point",
+        point: { x: center.x, y: center.y },
+      },
+    });
   };
   const prompt =
     state.mode === "reviewing"
@@ -82,7 +135,7 @@ export function AgentKitControls({
           aria-label="Canvas agent mode"
           className="mt-3 flex rounded-md bg-muted p-0.5"
         >
-          {(["working", "reviewing"] as const).map((mode) => (
+          {(["idling", "working", "reviewing"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -94,6 +147,61 @@ export function AgentKitControls({
             </button>
           ))}
         </fieldset>
+        <p className="mt-3 font-medium text-foreground">Prompt context</p>
+        <div className="mt-1 grid grid-cols-3 gap-1">
+          <button
+            type="button"
+            disabled={!editor || selectionCount === 0}
+            onClick={addSelectionContext}
+            className="rounded border border-border px-1.5 py-1.5 disabled:opacity-40"
+          >
+            Selection
+          </button>
+          <button
+            type="button"
+            disabled={!editor}
+            onClick={addViewportContext}
+            className="rounded border border-border px-1.5 py-1.5 disabled:opacity-40"
+          >
+            Area
+          </button>
+          <button
+            type="button"
+            disabled={!editor}
+            onClick={addCenterPointContext}
+            className="rounded border border-border px-1.5 py-1.5 disabled:opacity-40"
+          >
+            Point
+          </button>
+        </div>
+        {state.contextItems.length ? (
+          <ul className="mt-2 max-h-28 space-y-1 overflow-auto">
+            {state.contextItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1.5"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {item.type === "shapes"
+                    ? `${item.shapeIds.length} selected ${item.shapeIds.length === 1 ? "shape" : "shapes"}`
+                    : item.type === "area"
+                      ? `Area ${Math.round(item.bounds.width)}×${Math.round(item.bounds.height)}`
+                      : `Point ${Math.round(item.point.x)}, ${Math.round(item.point.y)}`}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.type} context`}
+                  onClick={() =>
+                    update({ contextItem: { ...item, remove: true } })
+                  }
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <IconTrash className="size-3.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="mt-3 flex gap-1">
           <input
             aria-label="New canvas agent task"
@@ -154,12 +262,17 @@ export function AgentKitControls({
         <button
           type="button"
           disabled={!editor || busy}
-          onClick={() => onAsk(prompt)}
+          onClick={() => {
+            if (state.mode === "idling") update({ mode: "working" });
+            onAsk(prompt);
+          }}
           className="mt-3 w-full rounded-md bg-foreground px-3 py-2 font-medium text-background disabled:opacity-40"
         >
           {state.mode === "reviewing"
             ? "Review with agent"
-            : "Continue with agent"}
+            : state.mode === "idling"
+              ? "Start agent"
+              : "Continue with agent"}
         </button>
       </div>
     </details>

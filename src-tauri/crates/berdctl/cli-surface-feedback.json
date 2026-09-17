@@ -252,6 +252,11 @@
           "about": "Draw one visible canvas arrow",
           "afterHelp": "Example:\n  berdctl canvas arrow --session-id <session-id> --start-shape-id <from-id> --end-shape-id <to-id>\n\nResult:\n  {\"action\": \"create-arrow\"} — the arrow is visible on the open canvas."
         },
+        "line": {
+          "action": "line",
+          "about": "Create one straight canvas line",
+          "afterHelp": "Example:\n  berdctl canvas line --session-id <session-id> --start-x 100 --start-y 100 --end-x 300 --end-y 180\n\nResult:\n  {\"action\":\"line\"} — one editable line is visible on the open canvas."
+        },
         "connect": {
           "action": "connect",
           "about": "Connect two visible canvas shapes",
@@ -281,6 +286,11 @@
           "action": "move",
           "about": "Move several visible canvas shapes",
           "afterHelp": "Example:\n  berdctl canvas move --session-id <session-id> --shape-ids <shape-a> --shape-ids <shape-b> --delta-x 40 --delta-y 0\n\nResult:\n  {\"ok\": true} — all named shapes move together."
+        },
+        "place": {
+          "action": "place",
+          "about": "Place one shape relative to another",
+          "afterHelp": "Example:\n  berdctl canvas place --session-id <session-id> --shape-id <shape> --reference-shape-id <reference> --side right --align center --side-offset 24\n\nResult:\n  {\"action\":\"place\"} — the shape is visibly placed relative to the reference."
         },
         "resize": {
           "action": "resize",
@@ -336,6 +346,31 @@
           "action": "agent_state",
           "about": "Update canvas agent mode or task list",
           "afterHelp": "Examples:\n  berdctl canvas agent-state --session-id <session-id> --mode reviewing\n  berdctl canvas agent-state --session-id <session-id> --todo-id layout --todo-title \"Align cards\" --todo-status in-progress\n\nResult:\n  {\"ok\": true} — the agent state is updated on the visible board."
+        },
+        "agent-context": {
+          "action": "agent_context",
+          "about": "Manage persistent point, area, or shape context",
+          "afterHelp": "Examples:\n  berdctl canvas agent-context --session-id <session-id> --operation add-shapes --shape-ids <shape-id>\n  berdctl canvas agent-context --session-id <session-id> --operation add-area --x 0 --y 0 --width 640 --height 480\n\nResult:\n  {\"action\":\"agent-context\"} — future canvas prompts include the saved context."
+        },
+        "count": {
+          "action": "count",
+          "about": "Count canvas shapes matching optional filters",
+          "afterHelp": "Examples:\n  berdctl canvas count --session-id <session-id>\n  berdctl canvas count --session-id <session-id> --type rectangle --color blue\n\nResult:\n  {\"count\":2,\"shape_ids\":[\"shape:...\"]} — matching visible shapes are returned."
+        },
+        "country-info": {
+          "action": "country_info",
+          "about": "Fetch the Agent starter kit country-data example",
+          "afterHelp": "Example:\n  berdctl canvas country-info --session-id <session-id> --code de\n\nResult:\n  {\"country\":{...}} — the REST Countries response is returned to the agent."
+        },
+        "review": {
+          "action": "review",
+          "about": "Schedule a visual canvas review pass",
+          "afterHelp": "Example:\n  berdctl canvas review --session-id <session-id> --intent \"Check spacing and arrow labels\" --x 0 --y 0 --width 800 --height 600\n\nResult:\n  {\"send_status\":\"queued\"} — a fresh visual review runs after the current turn."
+        },
+        "add-detail": {
+          "action": "add_detail",
+          "about": "Schedule another visual canvas detail pass",
+          "afterHelp": "Example:\n  berdctl canvas add-detail --session-id <session-id> --intent \"Add labels and supporting notes\"\n\nResult:\n  {\"send_status\":\"queued\"} — another visual work pass runs after the current turn."
         }
       }
     }

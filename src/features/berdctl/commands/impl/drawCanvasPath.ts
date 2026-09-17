@@ -31,6 +31,10 @@ const schema = z
       .boolean()
       .default(false)
       .describe("Close the stroke back to its first point."),
+    style: z
+      .enum(["smooth", "straight"])
+      .default("smooth")
+      .describe("Smooth freehand path or straight point-to-point segments."),
   })
   .strict();
 

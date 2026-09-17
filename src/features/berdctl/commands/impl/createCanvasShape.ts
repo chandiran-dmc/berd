@@ -24,7 +24,30 @@ const schema = z
       .default("chat")
       .describe("Canvas scope to modify."),
     kind: z
-      .enum(["rectangle", "ellipse", "note", "text"])
+      .enum([
+        "rectangle",
+        "ellipse",
+        "triangle",
+        "diamond",
+        "hexagon",
+        "pill",
+        "cloud",
+        "x-box",
+        "check-box",
+        "heart",
+        "pentagon",
+        "octagon",
+        "star",
+        "parallelogram-right",
+        "parallelogram-left",
+        "trapezoid",
+        "fat-arrow-right",
+        "fat-arrow-left",
+        "fat-arrow-up",
+        "fat-arrow-down",
+        "note",
+        "text",
+      ])
       .describe("Bounded shape kind to create."),
     x: z
       .number()

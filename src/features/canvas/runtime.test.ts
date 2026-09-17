@@ -17,6 +17,7 @@ vi.hoisted(() => {
 });
 
 import {
+  countCanvasShapes,
   createCanvasShape,
   executeCanvasAction,
   getCanvasContext,
@@ -25,6 +26,7 @@ import {
   updateCanvasShape,
 } from "./runtime";
 import { onCanvasAction } from "./actions";
+import { readCanvasAgentState } from "./agentState";
 
 function makeEditor(overrides: Partial<Editor> = {}): Editor {
   return {
@@ -262,6 +264,207 @@ describe("canvas runtime editor registry", () => {
     expect(markHistoryStoppingPoint).toHaveBeenCalledTimes(2);
     expect(select).toHaveBeenCalledWith("shape:existing");
     expect(zoomToSelection).toHaveBeenCalledTimes(2);
+  });
+
+  it("creates every Agent kit geo family and labels supported shapes", () => {
+    const identity = board("session-agent-geos");
+    const createShape = vi.fn();
+    const updateShape = vi.fn();
+    const editor = makeEditor({
+      createShape,
+      updateShape,
+      markHistoryStoppingPoint: vi.fn(),
+      select: vi.fn(),
+      zoomToSelection: vi.fn(),
+      getShape: () =>
+        ({
+          id: "shape:arrow",
+          type: "arrow",
+          props: { richText: {} },
+        }) as never,
+      getCurrentPageShapeIds: () => new Set(["shape:arrow"]) as never,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    createCanvasShape(identity.boardId, {
+      kind: "pill",
+      x: 10,
+      y: 20,
+    });
+    createCanvasShape(identity.boardId, {
+      kind: "parallelogram-left",
+      x: 30,
+      y: 40,
+    });
+    createCanvasShape(identity.boardId, {
+      kind: "fat-arrow-up",
+      x: 50,
+      y: 60,
+    });
+    updateCanvasShape(identity.boardId, {
+      shapeId: "shape:arrow",
+      text: "Approved",
+      color: "blue",
+    });
+
+    expect(createShape).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        props: expect.objectContaining({ geo: "oval" }),
+      }),
+    );
+    expect(createShape).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        props: expect.objectContaining({ geo: "rhombus-2" }),
+      }),
+    );
+    expect(createShape).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        props: expect.objectContaining({ geo: "arrow-up" }),
+      }),
+    );
+    expect(updateShape).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "shape:arrow",
+        props: expect.objectContaining({
+          color: "blue",
+          richText: expect.any(Object),
+        }),
+      }),
+    );
+  });
+
+  it("supports line creation, relative placement, and filtered counts", async () => {
+    const identity = board("session-agent-layout");
+    const shapes = new Map([
+      [
+        "shape:item",
+        {
+          id: "shape:item",
+          type: "geo",
+          x: 0,
+          y: 0,
+          props: { geo: "rectangle", color: "blue" },
+        },
+      ],
+      [
+        "shape:reference",
+        {
+          id: "shape:reference",
+          type: "geo",
+          x: 100,
+          y: 0,
+          props: { geo: "rectangle", color: "red" },
+        },
+      ],
+    ]);
+    const createShape = vi.fn();
+    const updateShape = vi.fn();
+    const editor = makeEditor({
+      createShape,
+      updateShape,
+      markHistoryStoppingPoint: vi.fn(),
+      select: vi.fn(),
+      getShape: (id) => shapes.get(String(id)) as never,
+      getCurrentPageShapes: () => [...shapes.values()] as never[],
+      getCurrentPageShapeIds: () => new Set(shapes.keys()) as never,
+      getShapePageBounds: (idOrShape) => {
+        const id =
+          typeof idOrShape === "string" ? idOrShape : String(idOrShape.id);
+        return (
+          id === "shape:item"
+            ? { x: 0, y: 0, w: 50, h: 20, maxX: 50, maxY: 20 }
+            : {
+                x: 100,
+                y: 0,
+                w: 100,
+                h: 100,
+                maxX: 200,
+                maxY: 100,
+                center: { x: 150, y: 50 },
+              }
+        ) as never;
+      },
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await executeCanvasAction(identity.boardId, {
+      type: "line",
+      start: { x: 10, y: 20 },
+      end: { x: 110, y: 80 },
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "place",
+      shapeIds: ["shape:item"],
+      referenceShapeId: "shape:reference",
+      side: "right",
+      align: "center",
+      sideOffset: 24,
+      alignOffset: 0,
+    });
+    const count = countCanvasShapes(identity.boardId, {
+      type: "rectangle",
+      color: "blue",
+    });
+
+    expect(createShape).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "line", x: 10, y: 20 }),
+    );
+    expect(updateShape).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "shape:item", x: 224, y: 40 }),
+    );
+    expect(count).toEqual({
+      count: 1,
+      shapeIds: ["shape:item"],
+      shapeIdsTruncated: false,
+    });
+  });
+
+  it("persists Agent kit context and prepares a bounded review", async () => {
+    const identity = board("session-agent-context");
+    let page = { id: "page:one", meta: {} as Record<string, unknown> };
+    const zoomToBounds = vi.fn();
+    let editor: Editor;
+    editor = makeEditor({
+      getCurrentPage: () => page as never,
+      updatePage: (update) => {
+        page = { ...page, ...update } as typeof page;
+        return editor;
+      },
+      markHistoryStoppingPoint: vi.fn(),
+      zoomToBounds,
+    });
+    cleanupCallbacks.push(registerMountedEditor(identity, editor));
+
+    await executeCanvasAction(identity.boardId, {
+      type: "agent-context",
+      operation: "add",
+      contextItem: {
+        id: "ctx-point",
+        type: "point",
+        point: { x: 20, y: 30 },
+      },
+    });
+    await executeCanvasAction(identity.boardId, {
+      type: "agent-review",
+      intent: "Check hierarchy",
+      bounds: { x: 0, y: 0, width: 640, height: 480 },
+    });
+
+    const state = readCanvasAgentState(editor);
+    expect(state.mode).toBe("reviewing");
+    expect(state.contextItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "ctx-point", type: "point" }),
+        expect.objectContaining({ type: "area" }),
+      ]),
+    );
+    expect(zoomToBounds).toHaveBeenCalledWith(
+      expect.objectContaining({ x: 0, y: 0, w: 640, h: 480 }),
+      { inset: 64 },
+    );
   });
 
   it("executes validated batch editing as one logical history operation", async () => {

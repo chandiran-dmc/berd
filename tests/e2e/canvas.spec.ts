@@ -449,7 +449,7 @@ test("typed agent actions bind arrows, arrange groups and undo logical operation
   ).toHaveLength(3);
 });
 
-test("agent kit work mode and task list persist with the board", async ({
+test("agent kit mode, task list, and prompt context persist with the board", async ({
   page,
 }) => {
   await open(page);
@@ -459,9 +459,13 @@ test("agent kit work mode and task list persist with the board", async ({
     .getByRole("textbox", { name: "New canvas agent task" })
     .fill("Review visual hierarchy");
   await page.getByRole("button", { name: "Add canvas agent task" }).click();
+  await page.getByRole("button", { name: "Area", exact: true }).click();
+  await page.getByRole("button", { name: "Point", exact: true }).click();
   await expect(
     page.getByText("Review visual hierarchy", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText(/^Area \d+×\d+$/)).toBeVisible();
+  await expect(page.getByText(/^Point -?\d+, -?\d+$/)).toBeVisible();
   await expect(page.getByRole("button", { name: "reviewing" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -473,6 +477,8 @@ test("agent kit work mode and task list persist with the board", async ({
   await expect(
     page.getByText("Review visual hierarchy", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText(/^Area \d+×\d+$/)).toBeVisible();
+  await expect(page.getByText(/^Point -?\d+, -?\d+$/)).toBeVisible();
   await expect(page.getByRole("button", { name: "reviewing" })).toHaveAttribute(
     "aria-pressed",
     "true",

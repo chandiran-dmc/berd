@@ -5,6 +5,14 @@ const dimension = z.number().finite().min(8).max(20_000);
 const shapeId = z.string().min(1).max(300);
 const shapeIds = z.array(shapeId).min(1).max(100);
 const point = z.object({ x: coordinate, y: coordinate }).strict();
+const bounds = z
+  .object({
+    x: coordinate,
+    y: coordinate,
+    width: dimension,
+    height: dimension,
+  })
+  .strict();
 const color = z.enum([
   "black",
   "grey",
@@ -24,7 +32,7 @@ export const canvasActionSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("agent-state"),
-      mode: z.enum(["working", "reviewing"]).optional(),
+      mode: z.enum(["idling", "working", "reviewing"]).optional(),
       todo: z
         .object({
           id: z.string().min(1).max(64),
@@ -41,11 +49,73 @@ export const canvasActionSchema = z.discriminatedUnion("type", [
     }),
   z
     .object({
+      type: z.literal("agent-context"),
+      operation: z.enum(["add", "remove", "clear"]),
+      contextItem: z
+        .discriminatedUnion("type", [
+          z
+            .object({
+              id: z.string().min(1).max(64),
+              type: z.literal("shapes"),
+              shapeIds,
+            })
+            .strict(),
+          z
+            .object({
+              id: z.string().min(1).max(64),
+              type: z.literal("area"),
+              bounds,
+            })
+            .strict(),
+          z
+            .object({
+              id: z.string().min(1).max(64),
+              type: z.literal("point"),
+              point,
+            })
+            .strict(),
+        ])
+        .optional(),
+      contextId: z.string().min(1).max(64).optional(),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      if (value.operation === "add" && !value.contextItem) {
+        ctx.addIssue({
+          code: "custom",
+          message: "A context item is required when adding context",
+        });
+      }
+      if (value.operation === "remove" && !value.contextId) {
+        ctx.addIssue({
+          code: "custom",
+          message: "A context id is required when removing context",
+        });
+      }
+    }),
+  z
+    .object({
+      type: z.literal("agent-review"),
+      intent: z.string().min(1).max(2_000),
+      bounds,
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("draw"),
       points: z.array(point).min(2).max(500),
       color: color.optional(),
       fill: z.enum(["none", "semi", "solid", "pattern"]).default("none"),
       closed: z.boolean().default(false),
+      style: z.enum(["smooth", "straight"]).default("smooth"),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("line"),
+      start: point,
+      end: point,
+      color: color.optional(),
     })
     .strict(),
   z
@@ -81,6 +151,17 @@ export const canvasActionSchema = z.discriminatedUnion("type", [
       shapeIds,
       deltaX: z.number().finite().min(-100_000).max(100_000),
       deltaY: z.number().finite().min(-100_000).max(100_000),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("place"),
+      shapeIds: shapeIds.length(1),
+      referenceShapeId: shapeId,
+      side: z.enum(["top", "bottom", "left", "right"]),
+      align: z.enum(["start", "center", "end"]),
+      sideOffset: z.number().finite().min(-20_000).max(20_000).default(0),
+      alignOffset: z.number().finite().min(-20_000).max(20_000).default(0),
     })
     .strict(),
   z

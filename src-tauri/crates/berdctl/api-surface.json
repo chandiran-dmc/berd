@@ -1537,7 +1537,30 @@
               "required": true,
               "kind": "string",
               "description": "Bounded shape kind to create.",
-              "values": ["rectangle", "ellipse", "note", "text"]
+              "values": [
+                "rectangle",
+                "ellipse",
+                "triangle",
+                "diamond",
+                "hexagon",
+                "pill",
+                "cloud",
+                "x-box",
+                "check-box",
+                "heart",
+                "pentagon",
+                "octagon",
+                "star",
+                "parallelogram-right",
+                "parallelogram-left",
+                "trapezoid",
+                "fat-arrow-right",
+                "fat-arrow-left",
+                "fat-arrow-up",
+                "fat-arrow-down",
+                "note",
+                "text"
+              ]
             },
             {
               "name": "x",
@@ -1627,7 +1650,30 @@
               },
               "kind": {
                 "type": "string",
-                "enum": ["rectangle", "ellipse", "note", "text"],
+                "enum": [
+                  "rectangle",
+                  "ellipse",
+                  "triangle",
+                  "diamond",
+                  "hexagon",
+                  "pill",
+                  "cloud",
+                  "x-box",
+                  "check-box",
+                  "heart",
+                  "pentagon",
+                  "octagon",
+                  "star",
+                  "parallelogram-right",
+                  "parallelogram-left",
+                  "trapezoid",
+                  "fat-arrow-right",
+                  "fat-arrow-left",
+                  "fat-arrow-up",
+                  "fat-arrow-down",
+                  "note",
+                  "text"
+                ],
                 "description": "Bounded shape kind to create."
               },
               "x": {
@@ -2005,6 +2051,164 @@
               }
             },
             "required": ["session_id", "start_shape_id", "end_shape_id"],
+            "additionalProperties": false
+          }
+        },
+        "line": {
+          "description": "Create the Agent starter kit's editable line shape between two page coordinates.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "start_x",
+              "required": true,
+              "kind": "number",
+              "description": "Line start x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "start_y",
+              "required": true,
+              "kind": "number",
+              "description": "Line start y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "end_x",
+              "required": true,
+              "kind": "number",
+              "description": "Line end x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "end_y",
+              "required": true,
+              "kind": "number",
+              "description": "Line end y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "color",
+              "required": false,
+              "kind": "string",
+              "description": "tldraw shape color.",
+              "values": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red"
+              ]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "start_x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Line start x position."
+              },
+              "start_y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Line start y position."
+              },
+              "end_x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Line end x position."
+              },
+              "end_y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Line end y position."
+              },
+              "color": {
+                "description": "tldraw shape color.",
+                "type": "string",
+                "enum": [
+                  "black",
+                  "grey",
+                  "light-violet",
+                  "violet",
+                  "blue",
+                  "light-blue",
+                  "yellow",
+                  "orange",
+                  "green",
+                  "light-green",
+                  "light-red",
+                  "red"
+                ]
+              }
+            },
+            "required": ["session_id", "start_x", "start_y", "end_x", "end_y"],
             "additionalProperties": false
           }
         },
@@ -2714,6 +2918,158 @@
             "additionalProperties": false
           }
         },
+        "place": {
+          "description": "Place an existing shape on a named side of a reference shape with bounded offsets.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "shape_id",
+              "required": true,
+              "kind": "string",
+              "description": "Shape to place.",
+              "min": 1,
+              "max": 300
+            },
+            {
+              "name": "reference_shape_id",
+              "required": true,
+              "kind": "string",
+              "description": "Existing shape used as the placement reference.",
+              "min": 1,
+              "max": 300
+            },
+            {
+              "name": "side",
+              "required": true,
+              "kind": "string",
+              "description": "Side of the reference shape.",
+              "values": ["top", "bottom", "left", "right"]
+            },
+            {
+              "name": "align",
+              "required": false,
+              "kind": "string",
+              "description": "Alignment along the selected side.",
+              "values": ["start", "center", "end"]
+            },
+            {
+              "name": "side_offset",
+              "required": false,
+              "kind": "number",
+              "description": "Gap from the reference shape.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "align_offset",
+              "required": false,
+              "kind": "number",
+              "description": "Offset along the alignment axis.",
+              "min": -100000,
+              "max": 100000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "shape_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300,
+                "description": "Shape to place."
+              },
+              "reference_shape_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300,
+                "description": "Existing shape used as the placement reference."
+              },
+              "side": {
+                "type": "string",
+                "enum": ["top", "bottom", "left", "right"],
+                "description": "Side of the reference shape."
+              },
+              "align": {
+                "default": "center",
+                "description": "Alignment along the selected side.",
+                "type": "string",
+                "enum": ["start", "center", "end"]
+              },
+              "side_offset": {
+                "default": 0,
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Gap from the reference shape."
+              },
+              "align_offset": {
+                "default": 0,
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Offset along the alignment axis."
+              }
+            },
+            "required": [
+              "session_id",
+              "shape_id",
+              "reference_shape_id",
+              "side"
+            ],
+            "additionalProperties": false
+          }
+        },
         "resize": {
           "description": "Resize each named visible shape using bounded horizontal and vertical scale factors.",
           "fields": [
@@ -3407,6 +3763,13 @@
               "required": false,
               "kind": "boolean",
               "description": "Close the stroke back to its first point."
+            },
+            {
+              "name": "style",
+              "required": false,
+              "kind": "string",
+              "description": "Smooth freehand path or straight point-to-point segments.",
+              "values": ["smooth", "straight"]
             }
           ],
           "schema": {
@@ -3473,6 +3836,12 @@
                 "default": false,
                 "description": "Close the stroke back to its first point.",
                 "type": "boolean"
+              },
+              "style": {
+                "default": "smooth",
+                "description": "Smooth freehand path or straight point-to-point segments.",
+                "type": "string",
+                "enum": ["smooth", "straight"]
               }
             },
             "required": ["session_id", "points"],
@@ -3821,7 +4190,7 @@
               "required": false,
               "kind": "string",
               "description": "Canvas agent mode.",
-              "values": ["working", "reviewing"]
+              "values": ["idling", "working", "reviewing"]
             },
             {
               "name": "todo_id",
@@ -3876,7 +4245,7 @@
               "mode": {
                 "description": "Canvas agent mode.",
                 "type": "string",
-                "enum": ["working", "reviewing"]
+                "enum": ["idling", "working", "reviewing"]
               },
               "todo_id": {
                 "description": "Stable task id to add, update, or remove.",
@@ -3894,6 +4263,599 @@
                 "description": "Task status; removed deletes the task.",
                 "type": "string",
                 "enum": ["open", "in-progress", "done", "removed"]
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
+        },
+        "agent_context": {
+          "description": "Add, remove, or clear the Agent starter kit context items included with future canvas prompts.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "operation",
+              "required": true,
+              "kind": "string",
+              "description": "Persistent agent context operation.",
+              "values": [
+                "add-shapes",
+                "add-area",
+                "add-point",
+                "remove",
+                "clear"
+              ]
+            },
+            {
+              "name": "context_id",
+              "required": false,
+              "kind": "string",
+              "description": "Stable context id; required for remove, optional for add.",
+              "min": 1,
+              "max": 64
+            },
+            {
+              "name": "shape_ids",
+              "required": false,
+              "kind": "string_array",
+              "description": "One or more visible shape ids to modify."
+            },
+            {
+              "name": "x",
+              "required": false,
+              "kind": "number",
+              "description": "Area or point x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "y",
+              "required": false,
+              "kind": "number",
+              "description": "Area or point y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "width",
+              "required": false,
+              "kind": "number",
+              "description": "Area width.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "height",
+              "required": false,
+              "kind": "number",
+              "description": "Area height.",
+              "min": 8,
+              "max": 20000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "add-shapes",
+                  "add-area",
+                  "add-point",
+                  "remove",
+                  "clear"
+                ],
+                "description": "Persistent agent context operation."
+              },
+              "context_id": {
+                "description": "Stable context id; required for remove, optional for add.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "shape_ids": {
+                "minItems": 1,
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "description": "One or more visible shape ids to modify."
+              },
+              "x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Area or point x position."
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Area or point y position."
+              },
+              "width": {
+                "type": "number",
+                "minimum": 8,
+                "maximum": 20000,
+                "description": "Area width."
+              },
+              "height": {
+                "type": "number",
+                "minimum": 8,
+                "maximum": 20000,
+                "description": "Area height."
+              }
+            },
+            "required": ["session_id", "operation"],
+            "additionalProperties": false
+          }
+        },
+        "count": {
+          "description": "Count all current-page shapes or filter by shape type, visible text, and color.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "type",
+              "required": false,
+              "kind": "string",
+              "description": "Optional tldraw or geometric shape type.",
+              "min": 1,
+              "max": 100
+            },
+            {
+              "name": "text",
+              "required": false,
+              "kind": "string",
+              "description": "Optional case-insensitive text fragment.",
+              "min": 1,
+              "max": 500
+            },
+            {
+              "name": "color",
+              "required": false,
+              "kind": "string",
+              "description": "tldraw shape color.",
+              "values": [
+                "black",
+                "grey",
+                "light-violet",
+                "violet",
+                "blue",
+                "light-blue",
+                "yellow",
+                "orange",
+                "green",
+                "light-green",
+                "light-red",
+                "red"
+              ]
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "type": {
+                "description": "Optional tldraw or geometric shape type.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "text": {
+                "description": "Optional case-insensitive text fragment.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "color": {
+                "description": "tldraw shape color.",
+                "type": "string",
+                "enum": [
+                  "black",
+                  "grey",
+                  "light-violet",
+                  "violet",
+                  "blue",
+                  "light-blue",
+                  "yellow",
+                  "orange",
+                  "green",
+                  "light-green",
+                  "light-red",
+                  "red"
+                ]
+              }
+            },
+            "required": ["session_id"],
+            "additionalProperties": false
+          }
+        },
+        "country_info": {
+          "description": "Call the same REST Countries integration demonstrated by the complete Agent starter kit.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "code",
+              "required": true,
+              "kind": "string",
+              "description": "ISO 3166-1 alpha-2 or alpha-3 country code."
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "code": {
+                "type": "string",
+                "pattern": "^[a-zA-Z]{2,3}$",
+                "description": "ISO 3166-1 alpha-2 or alpha-3 country code."
+              }
+            },
+            "required": ["session_id", "code"],
+            "additionalProperties": false
+          }
+        },
+        "review": {
+          "description": "Frame an area, capture fresh visual and structured context, and queue the Agent starter kit review pass in the same session.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "intent",
+              "required": true,
+              "kind": "string",
+              "description": "What the follow-up review should verify.",
+              "min": 1,
+              "max": 2000
+            },
+            {
+              "name": "x",
+              "required": true,
+              "kind": "number",
+              "description": "Review-area x position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "y",
+              "required": true,
+              "kind": "number",
+              "description": "Review-area y position.",
+              "min": -100000,
+              "max": 100000
+            },
+            {
+              "name": "width",
+              "required": true,
+              "kind": "number",
+              "description": "Review-area width.",
+              "min": 8,
+              "max": 20000
+            },
+            {
+              "name": "height",
+              "required": true,
+              "kind": "number",
+              "description": "Review-area height.",
+              "min": 8,
+              "max": 20000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "intent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "What the follow-up review should verify."
+              },
+              "x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Review-area x position."
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000,
+                "description": "Review-area y position."
+              },
+              "width": {
+                "type": "number",
+                "minimum": 8,
+                "maximum": 20000,
+                "description": "Review-area width."
+              },
+              "height": {
+                "type": "number",
+                "minimum": 8,
+                "maximum": 20000,
+                "description": "Review-area height."
+              }
+            },
+            "required": ["session_id", "intent", "x", "y", "width", "height"],
+            "additionalProperties": false
+          }
+        },
+        "add_detail": {
+          "description": "Capture fresh visual and structured context and queue another Agent starter kit work pass in the same session.",
+          "fields": [
+            {
+              "name": "session_id",
+              "required": true,
+              "kind": "string",
+              "description": "Id of the session owning the canvas.",
+              "min": 1
+            },
+            {
+              "name": "project_id",
+              "required": false,
+              "kind": "string",
+              "description": "Project id for a project canvas.",
+              "min": 1
+            },
+            {
+              "name": "board_id",
+              "required": false,
+              "kind": "string",
+              "description": "Named board id. Omit for the default board.",
+              "min": 1,
+              "max": 128
+            },
+            {
+              "name": "scope",
+              "required": false,
+              "kind": "string",
+              "description": "Canvas scope to modify.",
+              "values": ["chat", "project"]
+            },
+            {
+              "name": "intent",
+              "required": false,
+              "kind": "string",
+              "description": "What detail the follow-up pass should add.",
+              "min": 1,
+              "max": 2000
+            }
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Id of the session owning the canvas."
+              },
+              "project_id": {
+                "description": "Project id for a project canvas.",
+                "type": "string",
+                "minLength": 1
+              },
+              "board_id": {
+                "description": "Named board id. Omit for the default board.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "default": "chat",
+                "description": "Canvas scope to modify.",
+                "type": "string",
+                "enum": ["chat", "project"]
+              },
+              "intent": {
+                "default": "Add detail to the canvas.",
+                "description": "What detail the follow-up pass should add.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
               }
             },
             "required": ["session_id"],

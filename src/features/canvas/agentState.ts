@@ -7,7 +7,7 @@ import {
   type TLShape,
 } from "tldraw";
 
-export type CanvasAgentMode = "working" | "reviewing";
+export type CanvasAgentMode = "idling" | "working" | "reviewing";
 export type CanvasAgentTodoStatus = "open" | "in-progress" | "done";
 export interface CanvasAgentTodo {
   id: string;
@@ -17,14 +17,35 @@ export interface CanvasAgentTodo {
 export interface CanvasAgentState {
   mode: CanvasAgentMode;
   todos: CanvasAgentTodo[];
+  contextItems: CanvasAgentContextItem[];
 }
+export type CanvasAgentContextItem =
+  | {
+      id: string;
+      type: "shapes";
+      shapeIds: string[];
+    }
+  | {
+      id: string;
+      type: "area";
+      bounds: { x: number; y: number; width: number; height: number };
+    }
+  | {
+      id: string;
+      type: "point";
+      point: { x: number; y: number };
+    };
 export interface CanvasAgentLint {
   type: "growY-on-shape" | "overlapping-text" | "friendless-arrow";
   shapeIds: string[];
 }
 
 const META_KEY = "berdCanvasAgent";
-const EMPTY_STATE: CanvasAgentState = { mode: "working", todos: [] };
+const EMPTY_STATE: CanvasAgentState = {
+  mode: "idling",
+  todos: [],
+  contextItems: [],
+};
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
@@ -53,9 +74,65 @@ export function readCanvasAgentState(editor: Editor): CanvasAgentState {
         ];
       })
     : [];
+  const contextItems = Array.isArray(raw?.contextItems)
+    ? raw.contextItems.flatMap((value): CanvasAgentContextItem[] => {
+        const item = record(value);
+        if (typeof item?.id !== "string") return [];
+        if (item.type === "shapes" && Array.isArray(item.shapeIds)) {
+          const shapeIds = item.shapeIds
+            .filter((id): id is string => typeof id === "string")
+            .slice(0, 100);
+          return shapeIds.length
+            ? [{ id: item.id, type: "shapes", shapeIds }]
+            : [];
+        }
+        if (item.type === "area") {
+          const itemBounds = record(item.bounds);
+          if (
+            typeof itemBounds?.x === "number" &&
+            typeof itemBounds.y === "number" &&
+            typeof itemBounds.width === "number" &&
+            typeof itemBounds.height === "number"
+          ) {
+            return [
+              {
+                id: item.id,
+                type: "area",
+                bounds: {
+                  x: itemBounds.x,
+                  y: itemBounds.y,
+                  width: itemBounds.width,
+                  height: itemBounds.height,
+                },
+              },
+            ];
+          }
+        }
+        if (item.type === "point") {
+          const itemPoint = record(item.point);
+          if (
+            typeof itemPoint?.x === "number" &&
+            typeof itemPoint.y === "number"
+          ) {
+            return [
+              {
+                id: item.id,
+                type: "point",
+                point: { x: itemPoint.x, y: itemPoint.y },
+              },
+            ];
+          }
+        }
+        return [];
+      })
+    : [];
   return {
-    mode: raw?.mode === "reviewing" ? "reviewing" : "working",
+    mode:
+      raw?.mode === "reviewing" || raw?.mode === "working"
+        ? raw.mode
+        : "idling",
     todos: todos.slice(0, 50),
+    contextItems: contextItems.slice(0, 50),
   };
 }
 
@@ -63,6 +140,8 @@ export function updateCanvasAgentState(
   editor: Editor,
   update: Partial<Pick<CanvasAgentState, "mode">> & {
     todo?: CanvasAgentTodo & { remove?: boolean };
+    contextItem?: CanvasAgentContextItem & { remove?: boolean };
+    clearContext?: boolean;
   },
 ) {
   const current = readCanvasAgentState(editor);
@@ -71,9 +150,20 @@ export function updateCanvasAgentState(
     todos = todos.filter((item) => item.id !== update.todo?.id);
     if (!update.todo.remove) todos = [...todos, update.todo].slice(-50);
   }
+  let contextItems = update.clearContext ? [] : current.contextItems;
+  if (update.contextItem) {
+    contextItems = contextItems.filter(
+      (item) => item.id !== update.contextItem?.id,
+    );
+    if (!update.contextItem.remove) {
+      const { remove: _remove, ...contextItem } = update.contextItem;
+      contextItems = [...contextItems, contextItem].slice(-50);
+    }
+  }
   const next: CanvasAgentState = {
     mode: update.mode ?? current.mode,
     todos,
+    contextItems,
   };
   const page = editor.getCurrentPage();
   editor.updatePage({
@@ -132,5 +222,5 @@ export function detectCanvasAgentLints(editor: Editor): CanvasAgentLint[] {
 }
 
 export function emptyCanvasAgentState(): CanvasAgentState {
-  return EMPTY_STATE;
+  return { ...EMPTY_STATE, todos: [], contextItems: [] };
 }

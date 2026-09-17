@@ -156,6 +156,20 @@ export function collectCanvasContext(
   const camera = editor.getCamera();
   const state = recent.get(editor);
   const selectionBounds = editor.getSelectionPageBounds();
+  const agentState = readCanvasAgentState(editor);
+  const agentContextItems = agentState.contextItems.map((item) => {
+    if (item.type === "shapes") {
+      return {
+        ...item,
+        shapes: item.shapeIds.flatMap((shapeId) => {
+          const shape = editor.getShape(shapeId as TLShape["id"]);
+          return shape ? [describe(editor, shape, true)] : [];
+        }),
+      };
+    }
+    return item;
+  });
+  const now = new Date();
   const context = {
     version: 1,
     boardId: identity.boardId,
@@ -188,8 +202,13 @@ export function collectCanvasContext(
     omittedOffscreenClusters: Math.max(0, clusters.size - 24),
     recentEdits: [...(state?.edits ?? [])],
     omittedRecentEdits: 0,
-    agentState: readCanvasAgentState(editor),
+    agentState: {
+      ...agentState,
+      contextItems: agentContextItems,
+    },
     canvasLints: detectCanvasAgentLints(editor),
+    localTime: now.toLocaleString(),
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   while (
     new TextEncoder().encode(JSON.stringify(context)).length > MAX_JSON &&

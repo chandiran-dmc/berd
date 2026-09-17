@@ -23,7 +23,10 @@ attached canvas context JSON and pass it as `--board-id` to every `canvas` comma
 `--board-id` only for the default board. Berd verifies explicit ids against the
 owner's board catalog, so an id from another session or project is rejected.
 
-Create one bounded visible shape with `berdctl canvas add`:
+Create one bounded visible shape with `berdctl canvas add`. The complete Agent
+geometry family is available: rectangle, ellipse, triangle, diamond, hexagon,
+pill, cloud, x-box, check-box, heart, pentagon, octagon, star, both
+parallelograms, trapezoid, and all four fat arrows, plus note and text:
 
 ```text
 berdctl canvas add --session-id <session-id> --kind rectangle --x 100 --y 100 \
@@ -71,18 +74,35 @@ The Agent starter actions are also available through the same bounded surface:
 
 ```text
 berdctl canvas draw --session-id <session-id> \
-  --points 100,100 --points 180,130 --points 240,90 --color blue --json
+  --points 100,100 --points 180,130 --points 240,90 --color blue \
+  --style smooth --json
+berdctl canvas line --session-id <session-id> \
+  --start-x 100 --start-y 100 --end-x 300 --end-y 180 --json
 berdctl canvas rotate --session-id <session-id> \
   --shape-ids <shape-id> --degrees 15 --json
 berdctl canvas stack --session-id <session-id> \
   --shape-ids <shape-a> --shape-ids <shape-b> --direction horizontal --gap 32 --json
+berdctl canvas place --session-id <session-id> --shape-id <shape-a> \
+  --reference-shape-id <shape-b> --side right --align center --side-offset 24 --json
 ```
 
-Use `canvas agent-state --mode working|reviewing` to switch the board agent
-mode. The same command can add or update a todo with `--todo-id`,
+Use `canvas count` to count the current page or filter by `--type`, `--text`,
+and `--color`. `canvas country-info --code <code>` provides the starter's
+REST Countries tool example.
+
+Use `canvas agent-state --mode idling|working|reviewing` to switch the board
+agent mode. The same command can add or update a todo with `--todo-id`,
 `--todo-title`, and `--todo-status open|in-progress|done`, or remove it with
 `--todo-status removed`. This state and the current canvas lints are included
-in attached structured context. Use `canvas clear --confirm` only when the
+in attached structured context. Save shape, area, or point context across
+turns with `canvas agent-context --operation add-shapes|add-area|add-point`;
+use `remove` with its context id or `clear` to remove saved context.
+
+Use `canvas add-detail --intent <intent>` to queue another same-session work
+pass with a fresh screenshot and structured canvas context. Use `canvas review
+--intent <intent> --x <x> --y <y> --width <w> --height <h>` to frame an area,
+switch to review mode, capture the current result, and queue a visual review
+that can correct its own findings. Use `canvas clear --confirm` only when the
 user asked to clear the page; the operation remains undoable.
 
 Use `canvas viewport --mode fit` to frame the board after a large edit, or use

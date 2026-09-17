@@ -7,6 +7,7 @@ import {
   renderPlaintextFromRichText,
   toRichText,
   type Editor,
+  type IndexKey,
   type TLImageAsset,
   type TLDrawShapeSegment,
   type TLShapeId,
@@ -23,7 +24,11 @@ import {
   type CanvasOpenRequest,
 } from "./canvasEvents";
 import type { CanvasBoardIdentity } from "./canvasIdentity";
-import { updateCanvasAgentState } from "./agentState";
+import { readCanvasAgentState, updateCanvasAgentState } from "./agentState";
+import {
+  createCanvasAttachment,
+  type CanvasContextMode,
+} from "./contextAttachment";
 
 export { closeCanvas, openCanvas };
 export type { CanvasOpenRequest };
@@ -48,9 +53,55 @@ const colorSchema = z.enum([
   "red",
 ]);
 
+const AGENT_GEO_TO_TLDRAW_GEO = {
+  rectangle: "rectangle",
+  ellipse: "ellipse",
+  triangle: "triangle",
+  diamond: "diamond",
+  hexagon: "hexagon",
+  pill: "oval",
+  cloud: "cloud",
+  "x-box": "x-box",
+  "check-box": "check-box",
+  heart: "heart",
+  pentagon: "pentagon",
+  octagon: "octagon",
+  star: "star",
+  "parallelogram-right": "rhombus",
+  "parallelogram-left": "rhombus-2",
+  trapezoid: "trapezoid",
+  "fat-arrow-right": "arrow-right",
+  "fat-arrow-left": "arrow-left",
+  "fat-arrow-up": "arrow-up",
+  "fat-arrow-down": "arrow-down",
+} as const;
+
 const createShapeSchema = z
   .object({
-    kind: z.enum(["rectangle", "ellipse", "note", "text"]),
+    kind: z.enum([
+      "rectangle",
+      "ellipse",
+      "triangle",
+      "diamond",
+      "hexagon",
+      "pill",
+      "cloud",
+      "x-box",
+      "check-box",
+      "heart",
+      "pentagon",
+      "octagon",
+      "star",
+      "parallelogram-right",
+      "parallelogram-left",
+      "trapezoid",
+      "fat-arrow-right",
+      "fat-arrow-left",
+      "fat-arrow-up",
+      "fat-arrow-down",
+      "note",
+      "text",
+    ]),
     x: coordinateSchema,
     y: coordinateSchema,
     width: dimensionSchema.optional(),
@@ -108,6 +159,12 @@ export interface CanvasShapeContext {
   color?: string;
 }
 
+export interface CanvasShapeQuery {
+  type?: string;
+  text?: string;
+  color?: string;
+}
+
 const MAX_CONTEXT_SHAPES = 200;
 
 function recordValue(value: unknown): Record<string, unknown> | null {
@@ -160,6 +217,18 @@ export function getMountedEditor(boardId?: string): Editor | null {
   if (boardId) return mountedEditors.get(boardId) ?? null;
   if (mountedEditors.size !== 1) return null;
   return mountedEditors.values().next().value ?? null;
+}
+
+export async function createMountedCanvasAttachment(
+  boardId: string,
+  mode: CanvasContextMode,
+  expectedTarget?: CanvasActionTarget,
+) {
+  const editor = requireMountedEditor(boardId);
+  requireTarget(boardId, expectedTarget);
+  const identity = mountedBoards.get(boardId);
+  if (!identity) throw new Error(`Canvas ${boardId} is not open`);
+  return createCanvasAttachment(editor, identity, mode);
 }
 
 function requireMountedEditor(boardId: string): Editor {
@@ -250,6 +319,52 @@ export async function executeCanvasAction(
     message = action.todo
       ? `${action.todo.remove ? "Removed" : "Updated"} agent task ${action.todo.title}`
       : `Canvas agent mode changed to ${state.mode}`;
+  } else if (action.type === "agent-context") {
+    editor.markHistoryStoppingPoint("agent canvas context");
+    if (action.operation === "add" && action.contextItem?.type === "shapes") {
+      requireCurrentPageShapeIds(editor, action.contextItem.shapeIds);
+    }
+    const existingContextItem =
+      action.operation === "remove"
+        ? readCanvasAgentState(editor).contextItems.find(
+            (item) => item.id === action.contextId,
+          )
+        : undefined;
+    if (action.operation === "remove" && !existingContextItem) {
+      throw new Error(
+        `Canvas agent context ${action.contextId} does not exist`,
+      );
+    }
+    const state = updateCanvasAgentState(editor, {
+      clearContext: action.operation === "clear",
+      contextItem:
+        action.operation === "add" && action.contextItem
+          ? action.contextItem
+          : existingContextItem
+            ? { ...existingContextItem, remove: true }
+            : undefined,
+    });
+    message = `Canvas agent now has ${state.contextItems.length} context ${state.contextItems.length === 1 ? "item" : "items"}`;
+  } else if (action.type === "agent-review") {
+    editor.markHistoryStoppingPoint("agent canvas review");
+    updateCanvasAgentState(editor, {
+      mode: "reviewing",
+      contextItem: {
+        id: "review-area",
+        type: "area",
+        bounds: action.bounds,
+      },
+    });
+    editor.zoomToBounds(
+      new Box(
+        action.bounds.x,
+        action.bounds.y,
+        action.bounds.width,
+        action.bounds.height,
+      ),
+      { inset: 64 },
+    );
+    message = `Prepared review area: ${action.intent}`;
   } else if (action.type === "viewport") {
     if (action.mode === "fit")
       editor.zoomToFit({ animation: { duration: 180 } });
@@ -293,7 +408,9 @@ export async function executeCanvasAction(
           z: 0.75,
         })),
       );
-      const segments: TLDrawShapeSegment[] = [{ type: "free", path }];
+      const segments: TLDrawShapeSegment[] = [
+        { type: action.style === "straight" ? "straight" : "free", path },
+      ];
       editor.createShape({
         id,
         type: "draw",
@@ -313,6 +430,36 @@ export async function executeCanvasAction(
       affectedShapeIds = [String(id)];
       editor.select(id);
       message = `Drew a ${action.closed ? "closed" : "freehand"} shape`;
+    } else if (action.type === "line") {
+      editor.markHistoryStoppingPoint(`agent canvas ${action.type}`);
+      const id = createShapeId();
+      editor.createShape({
+        id,
+        type: "line",
+        x: action.start.x,
+        y: action.start.y,
+        props: {
+          color: action.color ?? "black",
+          points: {
+            a1: {
+              id: "a1",
+              index: "a1" as IndexKey,
+              x: 0,
+              y: 0,
+            },
+            a2: {
+              id: "a2",
+              index: "a2" as IndexKey,
+              x: action.end.x - action.start.x,
+              y: action.end.y - action.start.y,
+            },
+          },
+          spline: "line",
+        },
+      });
+      affectedShapeIds = [String(id)];
+      editor.select(id);
+      message = "Created line";
     } else if (action.type === "create-arrow") {
       const [startId, endId] = requireCurrentPageShapeIds(editor, [
         action.startShapeId,
@@ -483,6 +630,65 @@ export async function executeCanvasAction(
         );
         editor.select(...ids);
         message = `Moved ${ids.length} shape${ids.length === 1 ? "" : "s"}`;
+      } else if (action.type === "place") {
+        const [id] = ids;
+        const referenceId = requireCurrentPageShapeIds(editor, [
+          action.referenceShapeId,
+        ])[0];
+        if (id === referenceId)
+          throw new Error("A shape cannot be placed relative to itself");
+        const shape = editor.getShape(id);
+        const shapeBounds = editor.getShapePageBounds(id);
+        const referenceBounds = editor.getShapePageBounds(referenceId);
+        if (!shape || !shapeBounds || !referenceBounds)
+          throw new Error("Could not determine placement bounds");
+        const sideCoordinate =
+          action.side === "top"
+            ? {
+                x: referenceBounds.x,
+                y: referenceBounds.y - shapeBounds.h - action.sideOffset,
+              }
+            : action.side === "bottom"
+              ? {
+                  x: referenceBounds.x,
+                  y: referenceBounds.maxY + action.sideOffset,
+                }
+              : action.side === "left"
+                ? {
+                    x: referenceBounds.x - shapeBounds.w - action.sideOffset,
+                    y: referenceBounds.y,
+                  }
+                : {
+                    x: referenceBounds.maxX + action.sideOffset,
+                    y: referenceBounds.y,
+                  };
+        if (action.side === "top" || action.side === "bottom") {
+          sideCoordinate.x =
+            action.align === "start"
+              ? referenceBounds.x + action.alignOffset
+              : action.align === "center"
+                ? referenceBounds.center.x -
+                  shapeBounds.w / 2 +
+                  action.alignOffset
+                : referenceBounds.maxX - shapeBounds.w - action.alignOffset;
+        } else {
+          sideCoordinate.y =
+            action.align === "start"
+              ? referenceBounds.y + action.alignOffset
+              : action.align === "center"
+                ? referenceBounds.center.y -
+                  shapeBounds.h / 2 +
+                  action.alignOffset
+                : referenceBounds.maxY - shapeBounds.h - action.alignOffset;
+        }
+        editor.updateShape({
+          id,
+          type: shape.type,
+          x: shape.x + sideCoordinate.x - shapeBounds.x,
+          y: shape.y + sideCoordinate.y - shapeBounds.y,
+        });
+        editor.select(id);
+        message = `Placed ${id} ${action.side} of ${referenceId}`;
       } else if (action.type === "resize") {
         for (const id of ids)
           editor.resizeShape(id, { x: action.scaleX, y: action.scaleY });
@@ -558,6 +764,41 @@ export function getCanvasContext(boardId?: string): CanvasContext | null {
   };
 }
 
+export function countCanvasShapes(
+  boardId: string,
+  query: CanvasShapeQuery,
+  expectedTarget?: CanvasActionTarget,
+) {
+  const editor = requireMountedEditor(boardId);
+  requireTarget(boardId, expectedTarget);
+  const normalizedText = query.text?.trim().toLocaleLowerCase();
+  const matches = editor.getCurrentPageShapes().filter((shape) => {
+    const description = describeShape(editor, shape);
+    if (!description) return false;
+    if (
+      query.type &&
+      description.type.toLocaleLowerCase() !== query.type.toLocaleLowerCase()
+    )
+      return false;
+    if (
+      query.color &&
+      description.color?.toLocaleLowerCase() !== query.color.toLocaleLowerCase()
+    )
+      return false;
+    if (
+      normalizedText &&
+      !description.text.toLocaleLowerCase().includes(normalizedText)
+    )
+      return false;
+    return true;
+  });
+  return {
+    count: matches.length,
+    shapeIds: matches.slice(0, 100).map((shape) => String(shape.id)),
+    shapeIdsTruncated: matches.length > 100,
+  };
+}
+
 export function createCanvasShape(
   boardId: string,
   rawInput: CanvasCreateShapeInput,
@@ -593,13 +834,14 @@ export function createCanvasShape(
       },
     });
   } else {
+    const geo = AGENT_GEO_TO_TLDRAW_GEO[input.kind];
     editor.createShape({
       id,
       type: "geo",
       x: input.x,
       y: input.y,
       props: {
-        geo: input.kind,
+        geo,
         w: input.width ?? 240,
         h: input.height ?? 144,
         color,
@@ -635,8 +877,8 @@ export function updateCanvasShape(
     throw new Error(`Shape ${input.shapeId} is not on the current canvas page`);
   }
   if (
-    !(["geo", "note", "text"] as const).includes(
-      shape.type as "geo" | "note" | "text",
+    !(["geo", "note", "text", "line", "arrow", "draw"] as const).includes(
+      shape.type as "geo" | "note" | "text" | "line" | "arrow" | "draw",
     )
   ) {
     throw new Error(
@@ -650,6 +892,14 @@ export function updateCanvasShape(
     throw new Error(
       `${shape.type} shapes do not accept width or height updates`,
     );
+  }
+  if (
+    input.text !== undefined &&
+    !(["geo", "note", "text", "arrow"] as const).includes(
+      shape.type as "geo" | "note" | "text" | "arrow",
+    )
+  ) {
+    throw new Error(`Shape type ${shape.type} does not accept text updates`);
   }
 
   const props: Record<string, unknown> = {};

@@ -17,7 +17,10 @@ export {
   SessionDispatchUnresolvedError,
 } from "@/features/chat/lib/queuedSessionSend";
 import { formatIncludedWorkspacesPrompt } from "@/features/chat/lib/workspaceAttachments";
-import type { MessageMetadata } from "@/shared/types/messages";
+import type {
+  ChatAttachmentDraft,
+  MessageMetadata,
+} from "@/shared/types/messages";
 import type { ChatSendOptions } from "@/features/chat/types";
 export { isBerdctlCrossSessionQueuedMessage } from "@/features/chat/lib/queuedMessageOrigin";
 
@@ -116,6 +119,7 @@ export async function sendPromptToExistingSessionInBackground(
   options: {
     returnOnDispatch?: boolean;
     sendOptions?: ChatSendOptions;
+    attachments?: ChatAttachmentDraft[];
     validateHydratedTranscript?: () => void;
   } = {},
 ): Promise<void> {
@@ -162,7 +166,7 @@ export async function sendPromptToExistingSessionInBackground(
             ? formatIncludedWorkspacesPrompt(session)
             : undefined,
         },
-        undefined,
+        options.attachments,
         beforeUserMessageCommitted,
         undefined,
         undefined,

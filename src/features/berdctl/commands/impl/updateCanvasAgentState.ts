@@ -9,7 +9,7 @@ const schema = z
   .object({
     ...canvasTargetFields,
     mode: z
-      .enum(["working", "reviewing"])
+      .enum(["idling", "working", "reviewing"])
       .optional()
       .describe("Canvas agent mode."),
     todo_id: z

@@ -40,14 +40,18 @@ Truncation counts are explicit. The screenshot is bounded to 1600 pixels on its
 longest edge, then passes through Berd's existing image normalization. Attachment
 payload limits apply to image and context together.
 
-This integrates the complete user-facing feature set of tldraw's Agent starter kit
-at the repository's pinned tldraw 5.4.2 version. Its canvas context, work/review
-modes, persistent todo list, canvas lints, viewport control and editing actions run
-through Berd's existing selected agent and `berdctl` tool surface. Berd's ordinary
-ACP transcript provides streamed messages, thinking and history, so the starter's
-standalone Cloudflare worker and duplicate model picker are replaced by the host
-application's equivalent services. The adapted source retains the starter's MIT
-license alongside the implementation.
+This integrates the complete default action and prompt-part surface of tldraw's
+Agent starter kit at the repository's pinned tldraw 5.4.2 version. It includes
+the full geometry family, text and notes, editable straight lines, bound arrows,
+smooth or straight pen paths, relative placement, shape counting, the sample
+country-data tool, viewport control, persistent shape/area/point context, work,
+review and idling modes, a persistent todo list, canvas lints, local time and
+recent canvas actions. Review and add-detail actions capture a fresh screenshot
+and structured state, then queue the next pass in the same conversation. Berd's
+ordinary ACP transcript supplies streamed messages, thinking and history, and its
+selected agent replaces the starter's standalone Cloudflare worker and duplicate
+model picker. The action/prompt manifest pins this host-native mapping, and the
+adapted source retains the starter's MIT license alongside the implementation.
 
 The existing agent receives the screenshot as an ACP image block and the structure
 as text through Berd's ordinary queue. A provider must support image inputs to
@@ -60,15 +64,16 @@ Source: https://tldraw.dev/starter-kits/agent
 
 The bundled `creative-canvas` skill documents `berdctl canvas` commands. Use
 `berdctl canvas --help` for the authoritative generated surface. In addition to
-notes, text and geometry, commands cover freehand pen paths, bound arrows,
-persistent image imports, deleting and clearing, grouping/ungrouping,
-moving/resizing/rotating batches, aligning, distributing, stacking, reordering,
-viewport navigation, agent mode/todo updates and undo. The Agent panel exposes the
-same persistent work/review mode and todo list in the canvas UI, reports canvas
-lints, and can queue a work or review prompt with attached visual context. Commands
-validate bounded inputs and operate on a visible, mounted board. Project targets
-must belong to the named session. Explicit board IDs must belong to the selected
-scope's catalog.
+notes, text and the full Agent geometry family, commands cover editable lines,
+freehand pen paths, bound arrows, persistent image imports, deleting and clearing,
+grouping/ungrouping, moving/resizing/rotating batches, relative placement,
+aligning, distributing, stacking, reordering, filtered counts, viewport
+navigation, persistent agent context, mode/todo updates, scheduled detail/review
+passes and undo. The Agent panel exposes the persistent mode, todo and context
+controls in the canvas UI, reports canvas lints, and can queue work or review with
+attached visual context. Commands validate bounded inputs and operate on a
+visible, mounted board. Project targets must belong to the named session. Explicit
+board IDs must belong to the selected scope's catalog.
 
 Mutations appear immediately, announce feedback on the canvas, and stop undo history
 at logical operations. Delete remains reversible through undo. Image placement
@@ -89,7 +94,10 @@ Workflow records use the same local board store as ordinary tldraw content. They
 survive board changes and app reloads, synchronize through the existing local
 multi-window adapter, and remain editable in exported bundles. An imported or
 reopened board containing workflow nodes re-enters Workflow mode automatically.
-The starter source and its MIT license live under `src/features/canvas/workflow`.
+Every functional starter source module is present under
+`src/features/canvas/workflow`; only the standalone App/main shell is replaced by
+Berd's persistent CanvasWorkspace integration. A pinned source inventory test
+guards that mapping. The starter's MIT license lives beside the implementation.
 Source: https://tldraw.dev/starter-kits/workflow
 
 ## Editable portable bundles

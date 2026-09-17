@@ -11,6 +11,7 @@ import {
 } from "@/features/chat/lib/admittedSend";
 import { useSessionWindowStore } from "@/features/chat/stores/sessionWindowStore";
 import { formatAcpErrorMessage } from "@/shared/api/acpErrors";
+import type { ChatAttachmentDraft } from "@/shared/types/messages";
 
 import { CommandError } from "../types";
 
@@ -26,6 +27,7 @@ interface DeliverSessionPromptArgs {
   if_running: "refuse" | "steer" | "queue";
   from?: string;
   delivery_id?: string;
+  attachments?: ChatAttachmentDraft[];
 }
 
 function runningTargetMessage(sessionId: string): string {
@@ -109,7 +111,7 @@ export async function deliverSessionPrompt(
           await steerPromptInSession(
             args.session_id,
             args.prompt,
-            undefined,
+            args.attachments,
             sendOptions,
             { throwOnError: true },
           );
@@ -120,6 +122,7 @@ export async function deliverSessionPrompt(
             args.session_id,
             admitSystemInheritedQueuedMessage({
               text: args.prompt,
+              attachments: args.attachments,
               sendOptions,
             }),
           );
@@ -139,6 +142,7 @@ export async function deliverSessionPrompt(
       args.session_id,
       createDeferredQueuedMessagePayload({
         text: args.prompt,
+        attachments: args.attachments,
         persona: { kind: "inherit" },
         sendOptions,
       }),
@@ -158,6 +162,7 @@ export async function deliverSessionPrompt(
         args.session_id,
         admitSystemInheritedQueuedMessage({
           text: args.prompt,
+          attachments: args.attachments,
           sendOptions,
         }),
       );
@@ -179,6 +184,7 @@ export async function deliverSessionPrompt(
         {
           returnOnDispatch: true,
           sendOptions,
+          attachments: args.attachments,
           validateHydratedTranscript: () => {
             if (
               args.delivery_id &&
@@ -199,6 +205,7 @@ export async function deliverSessionPrompt(
             args.session_id,
             admitSystemInheritedQueuedMessage({
               text: args.prompt,
+              attachments: args.attachments,
               sendOptions,
             }),
           );
@@ -218,6 +225,7 @@ export async function deliverSessionPrompt(
             args.session_id,
             admitSystemInheritedQueuedMessage({
               text: args.prompt,
+              attachments: args.attachments,
               sendOptions,
             }),
           );

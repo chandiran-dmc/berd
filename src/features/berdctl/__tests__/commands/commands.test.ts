@@ -77,6 +77,7 @@ const mocks = vi.hoisted(() => ({
   openCanvas: vi.fn(),
   getCanvasContext: vi.fn(),
   getMountedEditor: vi.fn(),
+  createMountedCanvasAttachment: vi.fn(),
   createCanvasShape: vi.fn(),
   updateCanvasShape: vi.fn(),
   executeCanvasAction: vi.fn(),
@@ -87,6 +88,8 @@ vi.mock("@/features/canvas/runtime", () => ({
   openCanvas: (...args: unknown[]) => mocks.openCanvas(...args),
   getCanvasContext: (...args: unknown[]) => mocks.getCanvasContext(...args),
   getMountedEditor: (...args: unknown[]) => mocks.getMountedEditor(...args),
+  createMountedCanvasAttachment: (...args: unknown[]) =>
+    mocks.createMountedCanvasAttachment(...args),
   createCanvasShape: (...args: unknown[]) => mocks.createCanvasShape(...args),
   updateCanvasShape: (...args: unknown[]) => mocks.updateCanvasShape(...args),
   executeCanvasAction: (...args: unknown[]) =>
@@ -686,6 +689,13 @@ describe("action schemas", () => {
         start_shape_id: "shape:1",
         end_shape_id: "shape:2",
       },
+      "canvas.line": {
+        session_id: "s1",
+        start_x: 0,
+        start_y: 0,
+        end_x: 100,
+        end_y: 100,
+      },
       "canvas.connect": {
         session_id: "s1",
         from_shape_id: "shape:1",
@@ -716,6 +726,12 @@ describe("action schemas", () => {
         shape_ids: ["shape:1"],
         delta_x: 10,
         delta_y: 10,
+      },
+      "canvas.place": {
+        session_id: "s1",
+        shape_id: "shape:1",
+        reference_shape_id: "shape:2",
+        side: "right",
       },
       "canvas.resize": {
         session_id: "s1",
@@ -757,6 +773,26 @@ describe("action schemas", () => {
       },
       "canvas.clear": { session_id: "s1", confirm: true },
       "canvas.agent_state": { session_id: "s1", mode: "reviewing" },
+      "canvas.agent_context": {
+        session_id: "s1",
+        operation: "add-point",
+        x: 100,
+        y: 100,
+      },
+      "canvas.count": { session_id: "s1" },
+      "canvas.country_info": { session_id: "s1", code: "de" },
+      "canvas.review": {
+        session_id: "s1",
+        intent: "Check the result",
+        x: 0,
+        y: 0,
+        width: 640,
+        height: 480,
+      },
+      "canvas.add_detail": {
+        session_id: "s1",
+        intent: "Add supporting labels",
+      },
     };
 
     for (const [groupName, group] of Object.entries(TOOL_GROUPS)) {
@@ -5484,6 +5520,56 @@ describe("canvas schemas", () => {
 });
 
 describe("canvas dispatch", () => {
+  it("queues a review pass with a fresh canvas attachment", async () => {
+    seedSessions(makeSession({ id: "session-1", projectId: null }));
+    mockSessionFound();
+    useChatStore.getState().setChatState("session-1", "streaming");
+    mocks.executeCanvasAction.mockResolvedValue({
+      boardId: "chat:session-1",
+      action: "agent-review",
+      affectedShapeIds: [],
+      message: "Prepared review",
+    });
+    const attachment = {
+      id: "canvas-review",
+      kind: "image" as const,
+      name: "canvas.png",
+      mimeType: "image/png",
+      base64: "iVBORw0KGgo=",
+      previewUrl: "data:image/png;base64,iVBORw0KGgo=",
+    };
+    mocks.createMountedCanvasAttachment.mockResolvedValue(attachment);
+
+    await expect(
+      dispatchCommand(
+        "canvas",
+        {
+          action: "review",
+          session_id: "session-1",
+          intent: "Check the hierarchy",
+          x: 0,
+          y: 0,
+          width: 800,
+          height: 600,
+        },
+        ctx,
+      ),
+    ).resolves.toEqual({
+      board_id: "chat:session-1",
+      mode: "reviewing",
+      send_status: "queued",
+    });
+    expect(mocks.createMountedCanvasAttachment).toHaveBeenCalledWith(
+      "chat:session-1",
+      "viewport",
+      { sessionId: "session-1", projectId: null },
+    );
+    expect(
+      useChatStore.getState().queuedMessageBySession["session-1"]?.[0]?.payload
+        .attachments,
+    ).toEqual([attachment]);
+  });
+
   it("targets an explicit catalog-owned board", async () => {
     seedSessions(makeSession({ id: "session-1", projectId: null }));
     mockSessionFound();

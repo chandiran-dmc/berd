@@ -40,12 +40,14 @@ import { getCanvasContextCommand } from "./impl/getCanvasContext";
 import { createCanvasShapeCommand } from "./impl/createCanvasShape";
 import { updateCanvasShapeCommand } from "./impl/updateCanvasShape";
 import { createCanvasArrowCommand } from "./impl/createCanvasArrow";
+import { createCanvasLineCommand } from "./impl/createCanvasLine";
 import { connectCanvasShapesCommand } from "./impl/connectCanvasShapes";
 import { createCanvasImageCommand } from "./impl/createCanvasImage";
 import { deleteCanvasShapesCommand } from "./impl/deleteCanvasShapes";
 import { groupCanvasShapesCommand } from "./impl/groupCanvasShapes";
 import { ungroupCanvasShapesCommand } from "./impl/ungroupCanvasShapes";
 import { moveCanvasShapesCommand } from "./impl/moveCanvasShapes";
+import { placeCanvasShapeCommand } from "./impl/placeCanvasShape";
 import { resizeCanvasShapesCommand } from "./impl/resizeCanvasShapes";
 import { alignCanvasShapesCommand } from "./impl/alignCanvasShapes";
 import { distributeCanvasShapesCommand } from "./impl/distributeCanvasShapes";
@@ -57,6 +59,13 @@ import { rotateCanvasShapesCommand } from "./impl/rotateCanvasShapes";
 import { stackCanvasShapesCommand } from "./impl/stackCanvasShapes";
 import { clearCanvasCommand } from "./impl/clearCanvas";
 import { updateCanvasAgentStateCommand } from "./impl/updateCanvasAgentState";
+import { countCanvasShapesCommand } from "./impl/countCanvasShapes";
+import { getCanvasCountryInfoCommand } from "./impl/getCanvasCountryInfo";
+import { setCanvasAgentContextCommand } from "./impl/setCanvasAgentContext";
+import {
+  scheduleCanvasDetailCommand,
+  scheduleCanvasReviewCommand,
+} from "./impl/scheduleCanvasAgentPass";
 import { submitFeedbackCommand } from "./impl/submitFeedback";
 import { commandBridgeTimeoutMs } from "./timeouts";
 import { CommandError, type CommandContext, type ToolGroup } from "./types";
@@ -233,12 +242,14 @@ export const ALL_TOOL_GROUPS = {
         add: "add",
         update: "update",
         arrow: "arrow",
+        line: "line",
         connect: "connect",
         image: "image",
         delete: "delete",
         group: "group",
         ungroup: "ungroup",
         move: "move",
+        place: "place",
         resize: "resize",
         align: "align",
         distribute: "distribute",
@@ -250,6 +261,11 @@ export const ALL_TOOL_GROUPS = {
         stack: "stack",
         clear: "clear",
         "agent-state": "agent_state",
+        "agent-context": "agent_context",
+        count: "count",
+        "country-info": "country_info",
+        review: "review",
+        "add-detail": "add_detail",
       },
     },
     actions: {
@@ -258,12 +274,14 @@ export const ALL_TOOL_GROUPS = {
       add: createCanvasShapeCommand,
       update: updateCanvasShapeCommand,
       arrow: createCanvasArrowCommand,
+      line: createCanvasLineCommand,
       connect: connectCanvasShapesCommand,
       image: createCanvasImageCommand,
       delete: deleteCanvasShapesCommand,
       group: groupCanvasShapesCommand,
       ungroup: ungroupCanvasShapesCommand,
       move: moveCanvasShapesCommand,
+      place: placeCanvasShapeCommand,
       resize: resizeCanvasShapesCommand,
       align: alignCanvasShapesCommand,
       distribute: distributeCanvasShapesCommand,
@@ -275,6 +293,11 @@ export const ALL_TOOL_GROUPS = {
       stack: stackCanvasShapesCommand,
       clear: clearCanvasCommand,
       agent_state: updateCanvasAgentStateCommand,
+      agent_context: setCanvasAgentContextCommand,
+      count: countCanvasShapesCommand,
+      country_info: getCanvasCountryInfoCommand,
+      review: scheduleCanvasReviewCommand,
+      add_detail: scheduleCanvasDetailCommand,
     },
   },
 } as const satisfies Record<string, ToolGroup>;

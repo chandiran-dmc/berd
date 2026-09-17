@@ -350,6 +350,18 @@ mod tests {
                 "--end-shape-id",
                 "shape:2",
             ],
+            ("canvas", "line") => vec![
+                "--session-id",
+                "s",
+                "--start-x",
+                "0",
+                "--start-y",
+                "0",
+                "--end-x",
+                "100",
+                "--end-y",
+                "100",
+            ],
             ("canvas", "connect") => vec![
                 "--session-id",
                 "s",
@@ -403,6 +415,16 @@ mod tests {
                 "10",
                 "--delta-y",
                 "10",
+            ],
+            ("canvas", "place") => vec![
+                "--session-id",
+                "s",
+                "--shape-id",
+                "shape:1",
+                "--reference-shape-id",
+                "shape:2",
+                "--side",
+                "right",
             ],
             ("canvas", "resize") => vec![
                 "--session-id",
@@ -463,6 +485,29 @@ mod tests {
             ("canvas", "agent-state") => {
                 vec!["--session-id", "s", "--mode", "working"]
             }
+            ("canvas", "agent-context") => {
+                vec!["--session-id", "s", "--operation", "clear"]
+            }
+            ("canvas", "count") | ("canvas", "add-detail") => {
+                vec!["--session-id", "s"]
+            }
+            ("canvas", "country-info") => {
+                vec!["--session-id", "s", "--code", "de"]
+            }
+            ("canvas", "review") => vec![
+                "--session-id",
+                "s",
+                "--intent",
+                "check",
+                "--x",
+                "0",
+                "--y",
+                "0",
+                "--width",
+                "100",
+                "--height",
+                "100",
+            ],
             _ => return None,
         })
     }
